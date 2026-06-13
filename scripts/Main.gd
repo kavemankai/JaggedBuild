@@ -10,6 +10,9 @@ var _game_over: bool = false
 
 
 func _ready() -> void:
+	player_ship.speed_options = [1, 2, 3, 4]
+	player_ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
+
 	ai_ship.speed_options = [1, 2, 3]
 	ai_ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
 	ai_ship.attack = 2
