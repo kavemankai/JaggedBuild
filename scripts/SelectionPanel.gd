@@ -114,6 +114,7 @@ func _lock_buttons() -> void:
 func reset() -> void:
 	confirmed = false
 	ready_label.text = ""
+	ready_label.remove_theme_color_override("font_color")
 	ghost_ship.clear_preview()
 	if ship != null:
 		ship.selected_action = ""
@@ -127,3 +128,16 @@ func reset() -> void:
 		if child is Button:
 			child.disabled = stressed
 			child.button_pressed = false
+
+
+func force_ion_confirm() -> void:
+	var forced_m := Maneuver.new()
+	forced_m.bearing = "STRAIGHT"
+	forced_m.speed = 1
+	ship.selected_maneuver = forced_m
+	ghost_ship.update_preview(ship, forced_m)
+	confirmed = true
+	ready_label.text = "IONIZED — STRAIGHT 1"
+	ready_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0, 1.0))
+	_lock_buttons()
+	maneuver_confirmed.emit(forced_m)

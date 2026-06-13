@@ -25,10 +25,10 @@ func _ready() -> void:
 	heavy.display_name = "Heavy Cannon"
 	player_ship.weapon = heavy
 
-	var burst := Weapon.new()
-	burst.weapon_type = Weapon.Type.BURST
-	burst.display_name = "Burst Fire"
-	ai_ship.weapon = burst
+	var ion := Weapon.new()
+	ion.weapon_type = Weapon.Type.ION
+	ion.display_name = "Ion Cannons"
+	ai_ship.weapon = ion
 
 	var player_pilot := Pilot.new()
 	player_pilot.pilot_name = "ACE"
@@ -63,6 +63,8 @@ func _on_planning_started() -> void:
 	selection_panel.reset()
 	ai_ship.selected_maneuver = ai_controller.select_maneuver(ai_ship, player_ship)
 	ai_ship.selected_action = ai_controller.select_action(ai_ship, player_ship)
+	if player_ship.is_ionized():
+		selection_panel.force_ion_confirm()
 
 
 func _on_resolution_started() -> void:

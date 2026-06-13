@@ -25,6 +25,7 @@ var heavy_cooldown: int = 0
 var is_destroyed: bool = false
 var was_bumped: bool = false
 var stress: int = 0
+var ion_tokens: int = 0
 var focus_token: bool = false
 var evade_token: bool = false
 var target_lock: Ship = null
@@ -100,6 +101,10 @@ func get_nerve() -> float:
 func get_pilot_name() -> String:
 	var p: Pilot = pilot as Pilot
 	return p.pilot_name if p != null else "Unknown"
+
+
+func is_ionized() -> bool:
+	return ion_tokens > 0
 
 
 func get_maneuver_color(bearing: String) -> String:

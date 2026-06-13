@@ -4,6 +4,12 @@ const PREFERRED_DISTANCE: float = 300.0
 
 
 func select_maneuver(ai_ship: Ship, player_ship: Ship) -> Maneuver:
+	if ai_ship.is_ionized():
+		var forced := Maneuver.new()
+		forced.bearing = "STRAIGHT"
+		forced.speed = 1
+		return forced
+
 	var best_maneuver: Maneuver = null
 	var best_score: float = -INF
 

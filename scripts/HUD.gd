@@ -63,8 +63,8 @@ func _process(_delta: float) -> void:
 
 	_p_tokens.text = _token_text(_player_ship)
 	_ai_tokens.text = _token_text(_ai_ship)
-	_p_stress.text = "S×%d" % _player_ship.stress if _player_ship.stress > 0 else ""
-	_ai_stress.text = "S×%d" % _ai_ship.stress if _ai_ship.stress > 0 else ""
+	_p_stress.text = _status_text(_player_ship)
+	_ai_stress.text = _status_text(_ai_ship)
 	_p_weapon.text = _weapon_text(_player_ship)
 	_ai_weapon.text = _weapon_text(_ai_ship)
 
@@ -101,6 +101,14 @@ func _weapon_text(ship: Ship) -> String:
 		Weapon.Type.ION:
 			return "Ion"
 	return "Cannons"
+
+
+func _status_text(ship: Ship) -> String:
+	if ship.is_ionized():
+		return "ION×%d" % ship.ion_tokens
+	if ship.stress > 0:
+		return "S×%d" % ship.stress
+	return ""
 
 
 func _token_text(ship: Ship) -> String:

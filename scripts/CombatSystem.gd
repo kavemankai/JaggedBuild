@@ -86,15 +86,17 @@ func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 			var burst_atk: int = maxi(1, floori(float(attacker.attack) * BURST_ATK_RATIO))
 			var chance: float = calculate_hit_chance(attacker, defender, burst_atk)
 			return [
-				{"chance": chance, "damage": 1, "hit": false},
-				{"chance": chance, "damage": 1, "hit": false},
+				{"chance": chance, "damage": 1, "ion": 0, "hit": false},
+				{"chance": chance, "damage": 1, "ion": 0, "hit": false},
 			]
 		Weapon.Type.HEAVY:
 			if attacker.heavy_cooldown > 0:
 				return []
-			return [{"chance": calculate_hit_chance(attacker, defender), "damage": HEAVY_DAMAGE, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender), "damage": HEAVY_DAMAGE, "ion": 0, "hit": false}]
+		Weapon.Type.ION:
+			return [{"chance": calculate_hit_chance(attacker, defender), "damage": 1, "ion": 1, "hit": false}]
 		_:  # CANNONS default
-			return [{"chance": calculate_hit_chance(attacker, defender), "damage": 1, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender), "damage": 1, "ion": 0, "hit": false}]
 
 
 func _display_chance(shots: Array) -> float:
@@ -158,9 +160,13 @@ func run_combat(ships: Array) -> void:
 	for shot in a_shots:
 		if shot.hit:
 			apply_damage(ship_b, shot.damage)
+			if shot.ion > 0:
+				ship_b.ion_tokens += shot.ion
 	for shot in b_shots:
 		if shot.hit:
 			apply_damage(ship_a, shot.damage)
+			if shot.ion > 0:
+				ship_a.ion_tokens += shot.ion
 
 	# Set heavy cooldown for weapons that just fired
 	var wa: Weapon = ship_a.weapon as Weapon
