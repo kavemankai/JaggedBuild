@@ -13,7 +13,7 @@ func update_preview(ship_pos: Vector2, ship_rot: float, maneuver: Maneuver, acce
 
 	var end_state: Dictionary = ManeuverSystem.compute_end_state(ship_pos, ship_rot, maneuver)
 	ghost_body.global_position = end_state["position"]
-	ghost_body.rotation = end_state["rotation"]
+	ghost_body.rotation = end_state["rotation"] + deg_to_rad(90.0)
 
 	arc_line.default_color = Color(accent.r, accent.g, accent.b, 0.6)
 
