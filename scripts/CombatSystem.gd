@@ -1,7 +1,5 @@
 extends Node
 
-const Weapon := preload("res://scripts/Weapon.gd")
-
 const SKILL_MOD_PER_POINT: float = 0.05
 const SKILL_MOD_CAP: float = 0.20
 

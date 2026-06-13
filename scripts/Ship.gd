@@ -1,8 +1,6 @@
 class_name Ship
 extends Node2D
 
-const Pilot := preload("res://scripts/Pilot.gd")
-
 @export var pilot_skill: int = 4
 @export var speed_options: Array = [1, 2, 3, 4]
 @export var bearing_options: Array = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]

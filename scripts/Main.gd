@@ -1,8 +1,5 @@
 extends Node2D
 
-const Weapon := preload("res://scripts/Weapon.gd")
-const Pilot := preload("res://scripts/Pilot.gd")
-
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var ai_ship: Ship = $Ships/AIShip
 @onready var ghost_ship: Node2D = $GhostShip

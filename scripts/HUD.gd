@@ -1,7 +1,5 @@
 extends CanvasLayer
 
-const Weapon := preload("res://scripts/Weapon.gd")
-
 @onready var _round_label: Label = $Info/Round
 @onready var _phase_label: Label = $Info/Phase
 @onready var _p_name: Label = $HealthBars/PlayerRow/PlayerName
