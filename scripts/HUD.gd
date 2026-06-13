@@ -5,9 +5,11 @@ extends CanvasLayer
 @onready var _p_shields: ProgressBar = $HealthBars/PlayerRow/PlayerShields
 @onready var _p_hull: ProgressBar = $HealthBars/PlayerRow/PlayerHull
 @onready var _p_tokens: Label = $HealthBars/PlayerRow/PlayerTokens
+@onready var _p_stress: Label = $HealthBars/PlayerRow/PlayerStress
 @onready var _ai_shields: ProgressBar = $HealthBars/AIRow/AIShields
 @onready var _ai_hull: ProgressBar = $HealthBars/AIRow/AIHull
 @onready var _ai_tokens: Label = $HealthBars/AIRow/AITokens
+@onready var _ai_stress: Label = $HealthBars/AIRow/AIStress
 @onready var _result: Label = $Result
 
 var _player_ship: Ship = null
@@ -55,6 +57,8 @@ func _process(_delta: float) -> void:
 
 	_p_tokens.text = _token_text(_player_ship)
 	_ai_tokens.text = _token_text(_ai_ship)
+	_p_stress.text = "S×%d" % _player_ship.stress if _player_ship.stress > 0 else ""
+	_ai_stress.text = "S×%d" % _ai_ship.stress if _ai_ship.stress > 0 else ""
 
 	var p_low := _player_ship.hull <= _p_hull.max_value * 0.5
 	if p_low != _p_hull_low:

@@ -33,6 +33,7 @@ func _populate_grid() -> void:
 			m.bearing = bearing
 			m.speed = spd
 
+			btn.set_meta("bearing", bearing)
 			btn.mouse_entered.connect(_on_hover.bind(m))
 			btn.pressed.connect(_on_select.bind(m))
 			grid.add_child(btn)
@@ -99,10 +100,14 @@ func reset() -> void:
 	ghost_ship.clear_preview()
 	if ship != null:
 		ship.selected_action = ""
+	var stressed: bool = ship != null and ship.stress > 0
 	for child in grid.get_children():
 		if child is Button:
-			child.disabled = false
+			var bearing: String = child.get_meta("bearing", "")
+			var is_red: bool = ManeuverSystem.get_maneuver_color(bearing) == "RED"
+			child.disabled = stressed and is_red
+			child.modulate = Color(1.0, 0.5, 0.5, 0.7) if (stressed and is_red) else Color.WHITE
 	for child in _action_row.get_children():
 		if child is Button:
-			child.disabled = false
+			child.disabled = stressed
 			child.button_pressed = false

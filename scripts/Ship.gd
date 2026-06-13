@@ -18,6 +18,7 @@ extends Node2D
 var selected_maneuver: Maneuver = null
 var is_destroyed: bool = false
 var was_bumped: bool = false
+var stress: int = 0
 var focus_token: bool = false
 var evade_token: bool = false
 var target_lock: Ship = null
@@ -65,6 +66,14 @@ func hide_combat_ui() -> void:
 	_firing_arc.visible = false
 	_hit_label.visible = false
 	_hit_label.add_theme_color_override("font_color", accent_color)
+
+
+func pulse_stress() -> void:
+	var tween := create_tween()
+	tween.tween_property(_body, "modulate", Color(1.0, 0.2, 0.2, 1.0), 0.1)
+	tween.tween_property(_body, "modulate", Color.WHITE, 0.15)
+	tween.tween_property(_body, "modulate", Color(1.0, 0.2, 0.2, 1.0), 0.1)
+	tween.tween_property(_body, "modulate", Color.WHITE, 0.15)
 
 
 func destroy_ship() -> void:

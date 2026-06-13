@@ -34,7 +34,14 @@ func resolve_maneuvers() -> void:
 	for ship in resolution_order:
 		if ship.is_destroyed:
 			continue
+		var bearing: String = ship.selected_maneuver.bearing if ship.selected_maneuver else ""
 		await ship.execute_maneuver()
+		var move_color: String = ManeuverSystem.get_maneuver_color(bearing)
+		if move_color == "RED":
+			(ship as Ship).stress += 1
+			(ship as Ship).pulse_stress()
+		elif move_color == "GREEN" and (ship as Ship).stress > 0:
+			(ship as Ship).stress -= 1
 		for other in ships:
 			if other == ship or other.is_destroyed:
 				continue

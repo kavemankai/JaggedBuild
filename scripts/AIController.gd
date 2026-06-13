@@ -8,6 +8,8 @@ func select_maneuver(ai_ship: Ship, player_ship: Ship) -> Maneuver:
 	var best_score: float = -INF
 
 	for bearing in ai_ship.bearing_options:
+		if ai_ship.stress > 0 and ManeuverSystem.get_maneuver_color(bearing) == "RED":
+			continue
 		for speed in ai_ship.speed_options:
 			var m := Maneuver.new()
 			m.bearing = bearing
@@ -25,6 +27,8 @@ func select_maneuver(ai_ship: Ship, player_ship: Ship) -> Maneuver:
 
 
 func select_action(ai_ship: Ship, player_ship: Ship) -> String:
+	if ai_ship.stress > 0:
+		return ""
 	if ManeuverSystem.is_in_firing_arc(ai_ship, player_ship):
 		return "TARGET_LOCK" if ai_ship.target_lock == null else "FOCUS"
 	return "FOCUS"

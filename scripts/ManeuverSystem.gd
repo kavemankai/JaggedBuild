@@ -9,6 +9,9 @@ const MAX_RANGE: float = 500.0
 const RANGE_CLOSE: float = 167.0
 const RANGE_MEDIUM: float = 333.0
 
+const RED_BEARINGS: Array = ["TURN_LEFT", "TURN_RIGHT", "K_TURN"]
+const GREEN_BEARINGS: Array = ["STRAIGHT"]
+
 const BANK_LATERAL: float = 0.4
 const BANK_FORWARD: float = 0.9
 const TURN_LATERAL: float = 0.7
@@ -83,6 +86,14 @@ func generate_arc_points(ship_pos: Vector2, ship_rot: float, maneuver: Maneuver,
 		points.append(pt)
 
 	return points
+
+
+func get_maneuver_color(bearing: String) -> String:
+	if bearing in RED_BEARINGS:
+		return "RED"
+	if bearing in GREEN_BEARINGS:
+		return "GREEN"
+	return "WHITE"
 
 
 func is_out_of_bounds(pos: Vector2) -> bool:

@@ -4,7 +4,7 @@ extends Node
 func execute_actions(ships: Array) -> void:
 	for ship in ships:
 		var s: Ship = ship as Ship
-		if s.is_destroyed:
+		if s.is_destroyed or s.stress > 0:
 			s.selected_action = ""
 			continue
 		match s.selected_action:
