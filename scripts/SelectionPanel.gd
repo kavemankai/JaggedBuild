@@ -33,7 +33,10 @@ func _populate_grid() -> void:
 			m.bearing = bearing
 			m.speed = spd
 
+			var move_color := ship.get_maneuver_color(bearing)
 			btn.set_meta("bearing", bearing)
+			btn.set_meta("move_color", move_color)
+			_apply_maneuver_color(btn, move_color)
 			btn.mouse_entered.connect(_on_hover.bind(m))
 			btn.pressed.connect(_on_select.bind(m))
 			grid.add_child(btn)
@@ -85,6 +88,20 @@ func _on_action_toggled(button_pressed: bool, action: String) -> void:
 		ship.selected_action = ""
 
 
+func _apply_maneuver_color(btn: Button, move_color: String) -> void:
+	match move_color:
+		"RED":
+			btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
+			btn.add_theme_color_override("font_hover_color", Color(1.0, 0.55, 0.55, 1.0))
+			btn.add_theme_color_override("font_disabled_color", Color(1.0, 0.3, 0.3, 0.4))
+		"GREEN":
+			btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.45, 1.0))
+			btn.add_theme_color_override("font_hover_color", Color(0.55, 1.0, 0.65, 1.0))
+			btn.add_theme_color_override("font_disabled_color", Color(0.3, 1.0, 0.45, 0.4))
+		_:
+			pass  # white default
+
+
 func _lock_buttons() -> void:
 	for child in grid.get_children():
 		if child is Button:
@@ -103,10 +120,9 @@ func reset() -> void:
 	var stressed: bool = ship != null and ship.stress > 0
 	for child in grid.get_children():
 		if child is Button:
-			var bearing: String = child.get_meta("bearing", "")
-			var is_red: bool = ship.get_maneuver_color(bearing) == "RED"
+			var is_red: bool = child.get_meta("move_color", "WHITE") == "RED"
 			child.disabled = stressed and is_red
-			child.modulate = Color(1.0, 0.5, 0.5, 0.7) if (stressed and is_red) else Color.WHITE
+			child.modulate = Color(1.0, 1.0, 1.0, 0.45) if (stressed and is_red) else Color.WHITE
 	for child in _action_row.get_children():
 		if child is Button:
 			child.disabled = stressed
