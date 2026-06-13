@@ -50,6 +50,7 @@ func _ready() -> void:
 	player_pilot.accuracy = 1.1
 	player_pilot.agility = 1.0
 	player_pilot.nerve = 0.3
+	player_pilot.active_ability = "OVERCHARGE"
 	player_ship.pilot = player_pilot
 
 	var wing_pilot := Pilot.new()
@@ -58,6 +59,8 @@ func _ready() -> void:
 	wing_pilot.accuracy = 1.0
 	wing_pilot.agility = 1.0
 	wing_pilot.nerve = 0.2
+	wing_pilot.passive = "EVASIVE"
+	wing_pilot.active_ability = "BARREL_ROLL"
 	wing_ship.pilot = wing_pilot
 
 	var ai_pilot := Pilot.new()
@@ -66,7 +69,11 @@ func _ready() -> void:
 	ai_pilot.accuracy = 1.0
 	ai_pilot.agility = 1.1
 	ai_pilot.nerve = 0.1
+	ai_pilot.passive = "MARKSMAN"
 	ai_ship.pilot = ai_pilot
+
+	for ship in [player_ship, wing_ship, ai_ship]:
+		(ship as Ship).apply_setup_passives()
 
 	_ships = [player_ship, wing_ship, ai_ship]
 
@@ -92,6 +99,21 @@ func _on_planning_started() -> void:
 	ai_ship.selected_action = ai_controller.select_action(ai_ship, _ships)
 	if player_ship.is_ionized():
 		selection_panel.force_ion_confirm()
+
+
+func _process(_delta: float) -> void:
+	queue_redraw()
+
+
+func _draw() -> void:
+	for i in range(_ships.size()):
+		for j in range(i + 1, _ships.size()):
+			var a: Ship = _ships[i] as Ship
+			var b: Ship = _ships[j] as Ship
+			if a.is_destroyed or b.is_destroyed or a.team != b.team:
+				continue
+			if a.global_position.distance_to(b.global_position) <= CombatSystem.FORMATION_RANGE:
+				draw_line(a.global_position, b.global_position, Color(0.3, 0.8, 1.0, 0.22), 2.0)
 
 
 func _on_resolution_started() -> void:

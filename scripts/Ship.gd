@@ -27,11 +27,14 @@ var is_destroyed: bool = false
 var was_bumped: bool = false
 var stress: int = 0
 var ion_tokens: int = 0
+var in_formation: bool = false
 var focus_token: bool = false
 var evade_token: bool = false
 var target_lock: Ship = null
 var selected_action: String = ""
 var order: String = "ENGAGE"
+var ability_used: bool = false
+var overcharged: bool = false
 var _arc_pts: Array = []
 
 @onready var _body: Sprite2D = $Body
@@ -97,12 +100,36 @@ func get_agility() -> float:
 
 func get_nerve() -> float:
 	var p: Pilot = pilot as Pilot
-	return p.nerve if p != null else 0.0
+	var base: float = p.nerve if p != null else 0.0
+	if get_passive() == "STEADY":
+		base += 0.25
+	return clampf(base, 0.0, 1.0)
 
 
 func get_pilot_name() -> String:
 	var p: Pilot = pilot as Pilot
 	return p.pilot_name if p != null else "Unknown"
+
+
+func get_passive() -> String:
+	var p: Pilot = pilot as Pilot
+	return p.passive if p != null else ""
+
+
+func get_active_ability() -> String:
+	var p: Pilot = pilot as Pilot
+	return p.active_ability if p != null else ""
+
+
+func has_active_ability() -> bool:
+	return get_active_ability() != ""
+
+
+# Applies one-time setup perks (e.g. bonus hull). Call after pilot is assigned.
+func apply_setup_passives() -> void:
+	match get_passive():
+		"STALWART":
+			hull += 1
 
 
 func is_ionized() -> bool:

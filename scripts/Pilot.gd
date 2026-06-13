@@ -8,3 +8,8 @@ extends Resource
 @export var nerve: float = 0.0    # 0-1, chance to ignore stress on red maneuver
 @export var xp: int = 0
 @export var status: String = "healthy"  # "healthy", "injured", "dead"
+
+# Always-on perk. One of: "", "MARKSMAN", "EVASIVE", "STALWART", "STEADY"
+@export var passive: String = ""
+# Once-per-battle action. One of: "", "OVERCHARGE", "BARREL_ROLL"
+@export var active_ability: String = ""

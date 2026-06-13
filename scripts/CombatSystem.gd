@@ -16,6 +16,13 @@ const BURST_ATK_RATIO: float = 0.6
 const HEAVY_DAMAGE: int = 3
 const HEAVY_COOLDOWN_TURNS: int = 2
 
+const FORMATION_RANGE: float = 190.0
+const FORMATION_DEF_BONUS: float = 0.12
+
+const MARKSMAN_BONUS: float = 0.08
+const EVASIVE_BONUS: float = 0.08
+const OVERCHARGE_ATK: int = 2
+
 
 func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1) -> float:
 	# Base attack/defence scaled by pilot accuracy/agility
@@ -55,6 +62,14 @@ func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1
 		final_chance -= EVADE_TOKEN_REDUCTION
 	if defender.focus_token:
 		final_chance -= FOCUS_EVADE_BONUS
+	if defender.in_formation:
+		final_chance -= FORMATION_DEF_BONUS
+
+	# Passive perks
+	if attacker.get_passive() == "MARKSMAN":
+		final_chance += MARKSMAN_BONUS
+	if defender.get_passive() == "EVASIVE":
+		final_chance -= EVASIVE_BONUS
 
 	return clampf(final_chance, HIT_CHANCE_MIN, HIT_CHANCE_MAX)
 
@@ -81,9 +96,10 @@ func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 		return []
 	var w: Weapon = attacker.weapon as Weapon
 	var wtype: Weapon.Type = w.weapon_type if w != null else Weapon.Type.CANNONS
+	var oc: int = OVERCHARGE_ATK if attacker.overcharged else 0
 	match wtype:
 		Weapon.Type.BURST:
-			var burst_atk: int = maxi(1, floori(float(attacker.attack) * BURST_ATK_RATIO))
+			var burst_atk: int = maxi(1, floori(float(attacker.attack) * BURST_ATK_RATIO)) + oc
 			var chance: float = calculate_hit_chance(attacker, defender, burst_atk)
 			return [
 				{"chance": chance, "damage": 1, "ion": 0, "hit": false},
@@ -92,11 +108,11 @@ func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 		Weapon.Type.HEAVY:
 			if attacker.heavy_cooldown > 0:
 				return []
-			return [{"chance": calculate_hit_chance(attacker, defender), "damage": HEAVY_DAMAGE, "ion": 0, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": HEAVY_DAMAGE, "ion": 0, "hit": false}]
 		Weapon.Type.ION:
-			return [{"chance": calculate_hit_chance(attacker, defender), "damage": 1, "ion": 1, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 1, "ion": 1, "hit": false}]
 		_:  # CANNONS default
-			return [{"chance": calculate_hit_chance(attacker, defender), "damage": 1, "ion": 0, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 1, "ion": 0, "hit": false}]
 
 
 func _display_chance(shots: Array) -> float:
@@ -113,6 +129,16 @@ func _combat_status(ship: Ship, in_arc: bool, shots: Array) -> String:
 	if not in_arc or not shots.is_empty():
 		return ""
 	return "RELOADING [%d]" % ship.heavy_cooldown
+
+
+func _has_nearby_ally(ship: Ship, ships: Array) -> bool:
+	for s in ships:
+		var t: Ship = s as Ship
+		if t == ship or t.is_destroyed or t.team != ship.team:
+			continue
+		if ship.global_position.distance_to(t.global_position) <= FORMATION_RANGE:
+			return true
+	return false
 
 
 func pick_target(shooter: Ship, ships: Array) -> Ship:
@@ -136,11 +162,12 @@ func run_combat(ships: Array) -> void:
 	if alive.size() < 2:
 		return
 
-	# Tick heavy weapon cooldowns
+	# Tick heavy weapon cooldowns and recompute formation state
 	for s in alive:
 		var sh: Ship = s as Ship
 		if sh.heavy_cooldown > 0:
 			sh.heavy_cooldown -= 1
+		sh.in_formation = _has_nearby_ally(sh, ships)
 
 	# Each shooter picks a target and builds its shots
 	var engagements: Array = []  # { shooter, target, shots, used_lock }
@@ -199,6 +226,7 @@ func run_combat(ships: Array) -> void:
 		var sh: Ship = s as Ship
 		sh.focus_token = false
 		sh.evade_token = false
+		sh.overcharged = false
 	for e in engagements:
 		if e.used_lock:
 			e.shooter.target_lock = null

@@ -4,7 +4,8 @@ extends Node
 func execute_actions(ships: Array) -> void:
 	for ship in ships:
 		var s: Ship = ship as Ship
-		if s.is_destroyed or s.stress > 0:
+		# Stressed ships may still trigger an active ability, but no other action.
+		if s.is_destroyed or (s.stress > 0 and s.selected_action != "ABILITY"):
 			s.selected_action = ""
 			continue
 		match s.selected_action:
@@ -16,6 +17,8 @@ func execute_actions(ships: Array) -> void:
 				s.target_lock = _nearest_enemy(s, ships)
 			"BOOST":
 				await _execute_boost(s)
+			"ABILITY":
+				_execute_ability(s)
 		s.selected_action = ""
 
 
@@ -31,6 +34,19 @@ func _nearest_enemy(ship: Ship, ships: Array) -> Ship:
 			best_dist = d
 			best = t
 	return best
+
+
+func _execute_ability(ship: Ship) -> void:
+	if ship.ability_used:
+		return
+	match ship.get_active_ability():
+		"OVERCHARGE":
+			ship.overcharged = true
+		"BARREL_ROLL":
+			ship.evade_token = true
+			if ship.stress > 0:
+				ship.stress -= 1
+	ship.ability_used = true
 
 
 func _execute_boost(ship: Ship) -> void:

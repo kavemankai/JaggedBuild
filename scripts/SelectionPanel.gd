@@ -54,6 +54,8 @@ func _populate_actions() -> void:
 		child.queue_free()
 
 	var actions := [["FOCUS", "FOCUS"], ["TARGET LOCK", "TARGET_LOCK"], ["EVADE", "EVADE"], ["BOOST", "BOOST"]]
+	if ship.has_active_ability():
+		actions.append([ship.get_active_ability().replace("_", " "), "ABILITY"])
 	for entry in actions:
 		var label: String = entry[0]
 		var key: String = entry[1]
@@ -62,6 +64,8 @@ func _populate_actions() -> void:
 		btn.custom_minimum_size = Vector2(148, 38)
 		btn.toggle_mode = true
 		btn.set_meta("action_key", key)
+		if key == "ABILITY":
+			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3, 1.0))
 		btn.toggled.connect(_on_action_toggled.bind(key))
 		_action_row.add_child(btn)
 
@@ -165,7 +169,11 @@ func reset() -> void:
 			child.modulate = Color(1.0, 1.0, 1.0, 0.45) if (stressed and is_red) else Color.WHITE
 	for child in _action_row.get_children():
 		if child is Button:
-			child.disabled = stressed
+			var is_ability: bool = child.get_meta("action_key", "") == "ABILITY"
+			if is_ability:
+				child.disabled = ship != null and ship.ability_used
+			else:
+				child.disabled = stressed
 			child.button_pressed = false
 
 

@@ -35,12 +35,22 @@ func select_maneuver(ai_ship: Ship, ships: Array) -> Maneuver:
 
 
 func select_action(ai_ship: Ship, ships: Array) -> String:
+	var enemy := _nearest_enemy(ai_ship, ships)
+	var in_arc: bool = enemy != null and ManeuverSystem.is_in_firing_arc(ai_ship, enemy)
+
+	# Active ability (may be used while stressed)
+	if ai_ship.has_active_ability() and not ai_ship.ability_used:
+		var ab: String = ai_ship.get_active_ability()
+		if ab == "BARREL_ROLL" and ai_ship.stress > 0:
+			return "ABILITY"
+		if ab == "OVERCHARGE" and in_arc and ai_ship.stress == 0:
+			return "ABILITY"
+
 	if ai_ship.stress > 0 or ai_ship.is_ionized():
 		return ""
 	if ai_ship.order == "EVADE":
 		return "EVADE"
-	var enemy := _nearest_enemy(ai_ship, ships)
-	if enemy != null and ManeuverSystem.is_in_firing_arc(ai_ship, enemy):
+	if in_arc:
 		return "TARGET_LOCK" if ai_ship.target_lock == null else "FOCUS"
 	return "FOCUS"
 

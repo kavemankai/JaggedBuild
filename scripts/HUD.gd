@@ -147,6 +147,10 @@ func _token_text(ship: Ship) -> String:
 		parts.append("E")
 	if ship.target_lock != null:
 		parts.append("TL")
+	if ship.overcharged:
+		parts.append("OC")
+	if ship.in_formation:
+		parts.append("⬡")
 	return " ".join(parts)
 
 
