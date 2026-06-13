@@ -28,8 +28,19 @@ func resolve_maneuvers() -> void:
 	current_phase = Phase.RESOLUTION
 	resolution_phase_started.emit()
 
-	var resolution_order: Array = ships.duplicate()
-	resolution_order.sort_custom(func(a, b): return (a as Ship).get_skill() < (b as Ship).get_skill())
+	# Resolve by pilot skill ascending. Ties keep registration order (friendly ships
+	# are registered first, in the player's chosen order), so the sort must be stable —
+	# decorate with the original index and use it as the tiebreaker.
+	var decorated: Array = []
+	for i in range(ships.size()):
+		decorated.append({"ship": ships[i], "skill": (ships[i] as Ship).get_skill(), "idx": i})
+	decorated.sort_custom(func(a, b):
+		if a.skill == b.skill:
+			return a.idx < b.idx
+		return a.skill < b.skill)
+	var resolution_order: Array = []
+	for entry in decorated:
+		resolution_order.append(entry.ship)
 
 	for ship in resolution_order:
 		if ship.is_destroyed:
@@ -82,8 +93,8 @@ func _evaluate() -> void:
 		if s.ion_tokens > 0:
 			s.ion_tokens -= 1
 
-	var player_alive: bool = _team_alive("PLAYER")
-	var enemy_alive: bool = _team_alive("ENEMY")
+	var player_alive: bool = is_team_alive("PLAYER")
+	var enemy_alive: bool = is_team_alive("ENEMY")
 
 	if not player_alive and not enemy_alive:
 		_end_game("MUTUAL DESTRUCTION", Color.WHITE)
@@ -95,7 +106,7 @@ func _evaluate() -> void:
 		begin_round()
 
 
-func _team_alive(team_name: String) -> bool:
+func is_team_alive(team_name: String) -> bool:
 	for ship in ships:
 		var s: Ship = ship as Ship
 		if s.team == team_name and not s.is_destroyed:

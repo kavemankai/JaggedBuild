@@ -33,7 +33,6 @@ var focus_token: bool = false
 var evade_token: bool = false
 var target_lock: Ship = null
 var selected_action: String = ""
-var order: String = "ENGAGE"
 var ability_used: bool = false
 var overcharged: bool = false
 var kills: int = 0

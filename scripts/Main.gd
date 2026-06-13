@@ -1,46 +1,48 @@
 extends Node2D
 
 const SHIP_SCENE: PackedScene = preload("res://scenes/Ship.tscn")
+const GHOST_SCENE: PackedScene = preload("res://scenes/GhostShip.tscn")
 const AI_TEXTURE: Texture2D = preload("res://assets/ships/ship_ai.png")
 
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var wing_ship: Ship = $Ships/WingShip
 @onready var ships_root: Node2D = $Ships
-@onready var ghost_ship: Node2D = $GhostShip
-@onready var selection_panel: Control = $UI/SelectionPanel
+@onready var ghosts_root: Node2D = $Ghosts
+@onready var planning_strip: Control = $UI/PlanningStrip
 @onready var ai_controller: Node = $AIController
 @onready var hud: CanvasLayer = $HUD
 
 var _game_over: bool = false
 var _ships: Array = []
 var _player_ships: Array = []
+var _enemy_ships: Array = []
+var _ghosts: Dictionary = {}
 
-# Player-team spawn slots (position, rotation).
 const PLAYER_SLOTS: Array = [
 	[Vector2(800, 650), 0.0],
 	[Vector2(960, 670), 0.0],
 ]
-# Enemy spawn slots.
 const ENEMY_SLOTS: Array = [
 	[Vector2(800, 250), PI],
 	[Vector2(620, 280), PI],
 	[Vector2(980, 280), PI],
 ]
 
+# Per-ship ghost opacities so overlapping friendly paths stay distinguishable.
+const GHOST_ARC_ALPHAS: Array = [0.9, 0.6, 0.45]
+const GHOST_BODY_ALPHAS: Array = [0.45, 0.4, 0.35]
+
 
 func _ready() -> void:
 	var mission: Dictionary = CampaignManager.current_mission()
 	_player_ships = _deploy_player_team()
-	var enemies: Array = _deploy_enemies(mission)
+	_enemy_ships = _deploy_enemies(mission)
+	_ships = _player_ships + _enemy_ships
 
-	_ships = _player_ships + enemies
+	_build_ghosts()
 
-	# The first deployed player pilot is the human-controlled ship.
-	var human: Ship = _player_ships[0]
-	selection_panel.setup(human, ghost_ship)
-	if _player_ships.size() > 1:
-		selection_panel.setup_wingman(_player_ships[1])
-	selection_panel.maneuver_confirmed.connect(_on_maneuver_confirmed)
+	planning_strip.setup(_player_ships, _ghosts)
+	planning_strip.all_confirmed.connect(_on_all_confirmed)
 
 	hud.setup_ships(_ships)
 	hud.set_mission_label(mission.get("name", ""))
@@ -94,9 +96,19 @@ func _deploy_enemies(mission: Dictionary) -> Array:
 		var slot: Array = ENEMY_SLOTS[i % ENEMY_SLOTS.size()]
 		ship.position = slot[0]
 		ship.rotation = slot[1]
-		ship.order = "ENGAGE"
 		enemies.append(ship)
 	return enemies
+
+
+func _build_ghosts() -> void:
+	for i in range(_player_ships.size()):
+		var ship: Ship = _player_ships[i]
+		var ghost := GHOST_SCENE.instantiate()
+		ghosts_root.add_child(ghost)
+		ghost.base_arc_alpha = GHOST_ARC_ALPHAS[i % GHOST_ARC_ALPHAS.size()]
+		ghost.base_body_alpha = GHOST_BODY_ALPHAS[i % GHOST_BODY_ALPHAS.size()]
+		ghost.clear_preview()
+		_ghosts[ship] = ghost
 
 
 func _apply_spec(ship: Ship, spec: Dictionary) -> void:
@@ -139,17 +151,22 @@ func _weapon_type(weapon_name: String) -> Weapon.Type:
 
 
 func _on_planning_started() -> void:
-	selection_panel.visible = true
-	selection_panel.reset()
-	var human: Ship = _player_ships[0]
-	for s in _ships:
+	planning_strip.visible = true
+	planning_strip.reset()
+
+	# Player controls all friendly ships; the AI plans only enemy ships, spreading
+	# out from each other's chosen end positions.
+	var avoid_points: Array = []
+	for s in _enemy_ships:
 		var ship: Ship = s as Ship
-		if ship == human or ship.is_destroyed:
+		if ship.is_destroyed:
 			continue
-		ship.selected_maneuver = ai_controller.select_maneuver(ship, _ships)
+		var m: Maneuver = ai_controller.select_maneuver(ship, _ships, avoid_points)
+		ship.selected_maneuver = m
 		ship.selected_action = ai_controller.select_action(ship, _ships)
-	if human.is_ionized():
-		selection_panel.force_ion_confirm()
+		if m != null:
+			var es := ManeuverSystem.compute_end_state(ship.global_position, ship.rotation, m)
+			avoid_points.append(es["position"])
 
 
 func _process(_delta: float) -> void:
@@ -168,16 +185,16 @@ func _draw() -> void:
 
 
 func _on_resolution_started() -> void:
-	selection_panel.visible = false
+	planning_strip.visible = false
 
 
-func _on_maneuver_confirmed(_maneuver: Maneuver) -> void:
+func _on_all_confirmed() -> void:
 	RoundManager.resolve_maneuvers()
 
 
 func _on_game_ended(message: String, color: Color) -> void:
 	_game_over = true
-	var won: bool = not RoundManager._team_alive("ENEMY")
+	var won: bool = not RoundManager.is_team_alive("ENEMY")
 	CampaignManager.record_battle(_player_ships, won)
 	hud.show_result(message, color, CampaignManager.last_summary)
 
