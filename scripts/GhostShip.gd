@@ -1,6 +1,6 @@
 extends Node2D
 
-@onready var ghost_body: Polygon2D = $GhostBody
+@onready var ghost_body: Sprite2D = $GhostBody
 @onready var arc_line: Line2D = $ArcLine
 
 

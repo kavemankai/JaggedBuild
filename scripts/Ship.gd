@@ -4,11 +4,11 @@ extends Node2D
 @export var pilot_skill: int = 4
 @export var speed_options: Array = [1, 2, 3, 4]
 @export var bearing_options: Array = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
-@export var accent_color: Color = Color(0.2, 0.5, 1.0, 1.0):
+@export var accent_color: Color = Color(1.0, 0.3, 0.2, 1.0):
 	set(v):
 		accent_color = v
-		if _body != null:
-			_body.color = v
+
+@export var ship_texture: Texture2D
 
 @export var attack: int = 3
 @export var defence: int = 2
@@ -20,13 +20,14 @@ var is_destroyed: bool = false
 var was_bumped: bool = false
 var _arc_pts: Array = []
 
-@onready var _body: Polygon2D = $Body
+@onready var _body: Sprite2D = $Body
 @onready var _firing_arc: Polygon2D = $FiringArc
 @onready var _hit_label: Label = $HitLabel
 
 
 func _ready() -> void:
-	_body.color = accent_color
+	if ship_texture:
+		_body.texture = ship_texture
 	_build_arc_polygon()
 	_hit_label.add_theme_color_override("font_color", accent_color)
 
@@ -64,14 +65,14 @@ func hide_combat_ui() -> void:
 
 func flash_shield() -> void:
 	var tween := create_tween()
-	tween.tween_property(_body, "color", Color.WHITE, 0.05)
-	tween.tween_property(_body, "color", accent_color, 0.15)
+	tween.tween_property(_body, "modulate", Color(0.5, 0.8, 1.0, 1.0), 0.05)
+	tween.tween_property(_body, "modulate", Color.WHITE, 0.15)
 
 
 func flash_hull() -> void:
 	var tween := create_tween()
-	tween.tween_property(_body, "color", Color.RED, 0.05)
-	tween.tween_property(_body, "color", accent_color, 0.2)
+	tween.tween_property(_body, "modulate", Color.RED, 0.05)
+	tween.tween_property(_body, "modulate", Color.WHITE, 0.2)
 
 
 func get_arc_position(t: float) -> Vector2:
