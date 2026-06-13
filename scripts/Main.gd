@@ -1,103 +1,147 @@
 extends Node2D
 
+const SHIP_SCENE: PackedScene = preload("res://scenes/Ship.tscn")
+const AI_TEXTURE: Texture2D = preload("res://assets/ships/ship_ai.png")
+
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var wing_ship: Ship = $Ships/WingShip
-@onready var ai_ship: Ship = $Ships/AIShip
+@onready var ships_root: Node2D = $Ships
 @onready var ghost_ship: Node2D = $GhostShip
 @onready var selection_panel: Control = $UI/SelectionPanel
 @onready var ai_controller: Node = $AIController
+@onready var hud: CanvasLayer = $HUD
 
 var _game_over: bool = false
 var _ships: Array = []
+var _player_ships: Array = []
+
+# Player-team spawn slots (position, rotation).
+const PLAYER_SLOTS: Array = [
+	[Vector2(800, 650), 0.0],
+	[Vector2(960, 670), 0.0],
+]
+# Enemy spawn slots.
+const ENEMY_SLOTS: Array = [
+	[Vector2(800, 250), PI],
+	[Vector2(620, 280), PI],
+	[Vector2(980, 280), PI],
+]
 
 
 func _ready() -> void:
-	player_ship.team = "PLAYER"
-	player_ship.speed_options = [1, 2, 3, 4]
-	player_ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
+	var mission: Dictionary = CampaignManager.current_mission()
+	_player_ships = _deploy_player_team()
+	var enemies: Array = _deploy_enemies(mission)
 
-	wing_ship.team = "PLAYER"
-	wing_ship.speed_options = [1, 2, 3, 4]
-	wing_ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
-	wing_ship.order = "ENGAGE"
+	_ships = _player_ships + enemies
 
-	ai_ship.team = "ENEMY"
-	ai_ship.speed_options = [1, 2, 3]
-	ai_ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
-	ai_ship.attack = 2
-	ai_ship.defence = 3
-	ai_ship.shields = 3
-	ai_ship.hull = 2
-
-	var heavy := Weapon.new()
-	heavy.weapon_type = Weapon.Type.HEAVY
-	heavy.display_name = "Heavy Cannon"
-	player_ship.weapon = heavy
-
-	var wing_weapon := Weapon.new()
-	wing_weapon.weapon_type = Weapon.Type.BURST
-	wing_weapon.display_name = "Burst Fire"
-	wing_ship.weapon = wing_weapon
-
-	var ion := Weapon.new()
-	ion.weapon_type = Weapon.Type.ION
-	ion.display_name = "Ion Cannons"
-	ai_ship.weapon = ion
-
-	var player_pilot := Pilot.new()
-	player_pilot.pilot_name = "ACE"
-	player_pilot.skill = 5
-	player_pilot.accuracy = 1.1
-	player_pilot.agility = 1.0
-	player_pilot.nerve = 0.3
-	player_pilot.active_ability = "OVERCHARGE"
-	player_ship.pilot = player_pilot
-
-	var wing_pilot := Pilot.new()
-	wing_pilot.pilot_name = "HAWK"
-	wing_pilot.skill = 4
-	wing_pilot.accuracy = 1.0
-	wing_pilot.agility = 1.0
-	wing_pilot.nerve = 0.2
-	wing_pilot.passive = "EVASIVE"
-	wing_pilot.active_ability = "BARREL_ROLL"
-	wing_ship.pilot = wing_pilot
-
-	var ai_pilot := Pilot.new()
-	ai_pilot.pilot_name = "VIPER"
-	ai_pilot.skill = 3
-	ai_pilot.accuracy = 1.0
-	ai_pilot.agility = 1.1
-	ai_pilot.nerve = 0.1
-	ai_pilot.passive = "MARKSMAN"
-	ai_ship.pilot = ai_pilot
-
-	for ship in [player_ship, wing_ship, ai_ship]:
-		(ship as Ship).apply_setup_passives()
-
-	_ships = [player_ship, wing_ship, ai_ship]
-
-	selection_panel.setup(player_ship, ghost_ship)
-	selection_panel.setup_wingman(wing_ship)
+	# The first deployed player pilot is the human-controlled ship.
+	var human: Ship = _player_ships[0]
+	selection_panel.setup(human, ghost_ship)
+	if _player_ships.size() > 1:
+		selection_panel.setup_wingman(_player_ships[1])
 	selection_panel.maneuver_confirmed.connect(_on_maneuver_confirmed)
 
-	$HUD.setup_ships(_ships)
+	hud.setup_ships(_ships)
+	hud.set_mission_label(mission.get("name", ""))
 
 	RoundManager.register_ships(_ships)
 	RoundManager.planning_phase_started.connect(_on_planning_started)
 	RoundManager.resolution_phase_started.connect(_on_resolution_started)
-	RoundManager.game_ended.connect(func(_m, _c): _game_over = true)
+	RoundManager.game_ended.connect(_on_game_ended)
 	RoundManager.begin_round()
+
+
+func _deploy_player_team() -> Array:
+	var pilots: Array = CampaignManager.deployable_pilots()
+	var slots: Array = [player_ship, wing_ship]
+	var deployed: Array = []
+
+	for i in range(slots.size()):
+		var ship: Ship = slots[i]
+		if i < pilots.size():
+			ship.team = "PLAYER"
+			ship.speed_options = [1, 2, 3, 4]
+			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
+			_apply_spec(ship, pilots[i])
+			ship.position = PLAYER_SLOTS[i][0]
+			ship.rotation = PLAYER_SLOTS[i][1]
+			deployed.append(ship)
+		else:
+			ship.queue_free()
+
+	return deployed
+
+
+func _deploy_enemies(mission: Dictionary) -> Array:
+	var specs: Array = mission.get("enemies", [])
+	var enemies: Array = []
+	for i in range(specs.size()):
+		var ship: Ship = SHIP_SCENE.instantiate()
+		ship.ship_texture = AI_TEXTURE
+		ships_root.add_child(ship)
+		ship.team = "ENEMY"
+		ship.speed_options = [1, 2, 3]
+		ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
+		_apply_spec(ship, specs[i])
+		var slot: Array = ENEMY_SLOTS[i % ENEMY_SLOTS.size()]
+		ship.position = slot[0]
+		ship.rotation = slot[1]
+		ship.order = "ENGAGE"
+		enemies.append(ship)
+	return enemies
+
+
+func _apply_spec(ship: Ship, spec: Dictionary) -> void:
+	var p := Pilot.new()
+	p.pilot_name = spec.get("name", "?")
+	p.skill = int(spec.get("skill", 3))
+	p.accuracy = float(spec.get("accuracy", 1.0))
+	p.agility = float(spec.get("agility", 1.0))
+	p.nerve = float(spec.get("nerve", 0.0))
+	p.passive = spec.get("passive", "")
+	p.active_ability = spec.get("active", "")
+	p.xp = int(spec.get("xp", 0))
+	p.status = spec.get("status", "healthy")
+	ship.pilot = p
+
+	ship.attack = int(spec.get("attack", 3))
+	ship.defence = int(spec.get("defence", 2))
+	ship.shields = int(spec.get("shields", 2))
+	ship.hull = int(spec.get("hull", 3))
+
+	var w := Weapon.new()
+	w.weapon_type = _weapon_type(spec.get("weapon", "CANNONS"))
+	w.display_name = spec.get("weapon", "Cannons").capitalize()
+	ship.weapon = w
+
+	if spec.has("accent"):
+		var a: Array = spec["accent"]
+		ship.accent_color = Color(a[0], a[1], a[2], 1.0)
+
+	ship.apply_setup_passives()
+
+
+func _weapon_type(weapon_name: String) -> Weapon.Type:
+	match weapon_name:
+		"BURST": return Weapon.Type.BURST
+		"HEAVY": return Weapon.Type.HEAVY
+		"ION": return Weapon.Type.ION
+		"MISSILES": return Weapon.Type.MISSILES
+		_: return Weapon.Type.CANNONS
 
 
 func _on_planning_started() -> void:
 	selection_panel.visible = true
 	selection_panel.reset()
-	wing_ship.selected_maneuver = ai_controller.select_maneuver(wing_ship, _ships)
-	wing_ship.selected_action = ai_controller.select_action(wing_ship, _ships)
-	ai_ship.selected_maneuver = ai_controller.select_maneuver(ai_ship, _ships)
-	ai_ship.selected_action = ai_controller.select_action(ai_ship, _ships)
-	if player_ship.is_ionized():
+	var human: Ship = _player_ships[0]
+	for s in _ships:
+		var ship: Ship = s as Ship
+		if ship == human or ship.is_destroyed:
+			continue
+		ship.selected_maneuver = ai_controller.select_maneuver(ship, _ships)
+		ship.selected_action = ai_controller.select_action(ship, _ships)
+	if human.is_ionized():
 		selection_panel.force_ion_confirm()
 
 
@@ -122,6 +166,13 @@ func _on_resolution_started() -> void:
 
 func _on_maneuver_confirmed(_maneuver: Maneuver) -> void:
 	RoundManager.resolve_maneuvers()
+
+
+func _on_game_ended(message: String, color: Color) -> void:
+	_game_over = true
+	var won: bool = not RoundManager._team_alive("ENEMY")
+	CampaignManager.record_battle(_player_ships, won)
+	hud.show_result(message, color, CampaignManager.last_summary)
 
 
 func _input(event: InputEvent) -> void:

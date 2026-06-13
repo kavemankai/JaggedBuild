@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Ship.tscn" id="2"]
@@ -6,7 +6,6 @@
 [ext_resource type="PackedScene" path="res://scenes/SelectionPanel.tscn" id="4"]
 [ext_resource type="Script" path="res://scripts/AIController.gd" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="6"]
-[ext_resource type="Texture2D" path="res://assets/ships/ship_ai.png" id="7"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1")
@@ -24,13 +23,6 @@ position = Vector2(800, 600)
 [node name="WingShip" parent="Ships" instance=ExtResource("2")]
 position = Vector2(960, 620)
 accent_color = Color(0.3, 0.8, 1.0, 1.0)
-
-[node name="AIShip" parent="Ships" instance=ExtResource("2")]
-position = Vector2(800, 300)
-rotation = 3.14159265
-pilot_skill = 2
-accent_color = Color(0.3, 0.3, 0.4, 1.0)
-ship_texture = ExtResource("7")
 
 [node name="GhostShip" parent="." instance=ExtResource("3")]
 

@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+@onready var _mission_label: Label = $Info/Mission
 @onready var _round_label: Label = $Info/Round
 @onready var _phase_label: Label = $Info/Phase
 @onready var _health_bars: VBoxContainer = $HealthBars
@@ -21,7 +22,10 @@ func _ready() -> void:
 		_phase_label.text = "COMBAT")
 	RoundManager.evaluation_phase_started.connect(func():
 		_phase_label.text = "")
-	RoundManager.game_ended.connect(_on_game_ended)
+
+
+func set_mission_label(text: String) -> void:
+	_mission_label.text = text
 
 
 func setup_ships(ships: Array) -> void:
@@ -105,9 +109,18 @@ func _process(_delta: float) -> void:
 			_style_bar(row.hull, Color(0.9, 0.15, 0.1) if low else Color(0.9, 0.5, 0.1))
 
 
-func _on_game_ended(message: String, color: Color) -> void:
-	_result.text = message + "\n\nPRESS ANY KEY"
+func show_result(message: String, color: Color, summary: Array) -> void:
+	var text: String = message
+	if not summary.is_empty():
+		text += "\n"
+		for line in summary:
+			text += "\n" + str(line)
+	if CampaignManager.is_campaign_complete():
+		text += "\n\nCAMPAIGN COMPLETE"
+	text += "\n\nPRESS ANY KEY"
+	_result.text = text
 	_result.modulate = color
+	_result.add_theme_font_size_override("font_size", 40)
 	_result.visible = true
 
 

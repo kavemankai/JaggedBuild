@@ -27,6 +27,7 @@ RoundManager="*res://scripts/RoundManager.gd"
 CollisionHandler="*res://scripts/CollisionHandler.gd"
 CombatSystem="*res://scripts/CombatSystem.gd"
 ActionSystem="*res://scripts/ActionSystem.gd"
+CampaignManager="*res://scripts/CampaignManager.gd"
 
 [display]
 

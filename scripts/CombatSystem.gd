@@ -206,9 +206,12 @@ func run_combat(ships: Array) -> void:
 			continue
 		for shot in e.shots:
 			if shot.hit:
+				var was_alive: bool = not e.target.is_destroyed
 				apply_damage(e.target, shot.damage)
 				if shot.ion > 0:
 					e.target.ion_tokens += shot.ion
+				if was_alive and e.target.is_destroyed:
+					e.shooter.kills += 1
 
 	# Set heavy cooldown for weapons that just fired
 	for e in engagements:

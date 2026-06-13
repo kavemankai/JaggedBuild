@@ -35,6 +35,7 @@ var selected_action: String = ""
 var order: String = "ENGAGE"
 var ability_used: bool = false
 var overcharged: bool = false
+var kills: int = 0
 var _arc_pts: Array = []
 
 @onready var _body: Sprite2D = $Body
