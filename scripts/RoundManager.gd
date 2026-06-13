@@ -83,15 +83,16 @@ func _evaluate() -> void:
 	evaluation_phase_started.emit()
 
 	for ship in ships:
-		if ManeuverSystem.is_out_of_bounds(ship.global_position):
-			ship.is_destroyed = true
+		var s0: Ship = ship as Ship
+		if s0.is_targetable and ManeuverSystem.is_out_of_bounds(s0.global_position):
+			s0.is_destroyed = true
 
 	await get_tree().create_timer(0.3).timeout
 
+	# Ion: tick disabled-system durations, then (re)apply threshold disables.
+	# Ion tokens persist for the whole engagement (reset on mission end via reload).
 	for ship in ships:
-		var s: Ship = ship as Ship
-		if s.ion_tokens > 0:
-			s.ion_tokens -= 1
+		_process_ion(ship as Ship)
 
 	var player_alive: bool = is_team_alive("PLAYER")
 	var enemy_alive: bool = is_team_alive("ENEMY")
@@ -106,10 +107,44 @@ func _evaluate() -> void:
 		begin_round()
 
 
+func _process_ion(s: Ship) -> void:
+	if s.is_capital:
+		return
+	# Count down active disables, clearing expired ones.
+	for key in s.disabled_systems.keys():
+		s.disabled_systems[key] = int(s.disabled_systems[key]) - 1
+		if int(s.disabled_systems[key]) <= 0:
+			s.disabled_systems.erase(key)
+
+	var want: int = 0
+	if s.ion_tokens >= CombatSystem.ION_THRESHOLD_SYSTEM2:
+		want = 2
+	elif s.ion_tokens >= CombatSystem.ION_THRESHOLD_SYSTEM1:
+		want = 1
+
+	var active: int = 0
+	for key in s.disabled_systems.keys():
+		if key in CombatSystem.ION_DISABLE_POOL:
+			active += 1
+
+	while active < want:
+		var avail: Array = []
+		for sys_name in CombatSystem.ION_DISABLE_POOL:
+			if not s.disabled_systems.has(sys_name):
+				avail.append(sys_name)
+		if avail.is_empty():
+			break
+		var pick: String = avail[randi() % avail.size()]
+		s.disabled_systems[pick] = randi_range(
+			CombatSystem.ION_DISABLE_MIN_ROUNDS, CombatSystem.ION_DISABLE_MAX_ROUNDS)
+		active += 1
+
+
+# Only targetable ships count toward a team's survival (capital hulls are scenery).
 func is_team_alive(team_name: String) -> bool:
 	for ship in ships:
 		var s: Ship = ship as Ship
-		if s.team == team_name and not s.is_destroyed:
+		if s.team == team_name and s.is_targetable and not s.is_destroyed:
 			return true
 	return false
 

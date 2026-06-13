@@ -6,12 +6,13 @@ extends Node
 
 const SAVE_PATH: String = "user://campaign.json"
 
-const KILL_XP: int = 3
-const SURVIVE_XP: int = 1
-const WIN_XP: int = 2
-const LEVEL_XP: int = 6        # XP per skill level gained
+const KILL_XP: int = 2          # per ship destroyed
+const SURVIVE_XP: int = 1       # for surviving the mission
+const WIN_XP: int = 3           # mission objective completed
 const MAX_SKILL: int = 6
-const DEATH_CHANCE: float = 0.25
+const STAT_PER_LEVEL: float = 0.05
+# Cumulative XP milestones that each grant +1 skill above the pilot's base skill.
+const SKILL_STEP_THRESHOLDS: Array = [5, 15, 30, 50, 75]
 
 var roster: Array = []          # player pilot/ship specs
 var mission_index: int = 0
@@ -48,13 +49,18 @@ func _init_default_roster() -> void:
 
 
 # ------------------------------------------------------------------- deploying
-# Player pilots that can fly this battle (dead pilots sit out permanently).
+# Pilots who can fly this mission: only healthy ones (injured rest, dead are gone).
 func deployable_pilots() -> Array:
 	var out: Array = []
 	for entry in roster:
-		if entry.get("status", "healthy") != "dead":
+		if entry.get("status", "healthy") == "healthy":
 			out.append(entry)
-	# Emergency: a full wipe revives the squad so the campaign can continue.
+	# Emergency: never let the squad be unable to deploy.
+	if out.is_empty():
+		for entry in roster:
+			if entry.get("status", "") != "dead":
+				entry["status"] = "healthy"
+				out.append(entry)
 	if out.is_empty():
 		_init_default_roster()
 		save()
@@ -91,21 +97,37 @@ func get_missions() -> Array:
 			"name": "DREADNOUGHT ASSAULT",
 			"capital": true,
 			"enemies": [
-				_capital("DREADNOUGHT", 4, 1, 4, 10, [0.6, 0.2, 0.2]),
+				_capital_body("DREADNOUGHT", [0.5, 0.16, 0.18]),
+				_turret("TURRET A", -300.0, [0.75, 0.3, 0.25]),
+				_turret("TURRET B", 0.0, [0.75, 0.3, 0.25]),
+				_turret("TURRET C", 300.0, [0.75, 0.3, 0.25]),
 				_enemy("ESCORT", 2, "", "BURST", 3, 2, 2, 2, [0.4, 0.3, 0.5]),
 			],
 		},
 	]
 
 
-func _capital(p_name: String, atk: int, dfn: int, shd: int, hp: int, accent: Array) -> Dictionary:
+# Non-targetable capital hull: large scenery that mounts turrets and drifts L/R.
+func _capital_body(p_name: String, accent: Array) -> Dictionary:
 	return {
 		"name": p_name, "base_skill": 1, "skill": 1,
 		"accuracy": 1.0, "agility": 1.0, "nerve": 1.0,
 		"passive": "", "active": "", "weapon": "CANNONS",
-		"attack": atk, "defence": dfn, "shields": shd, "hull": hp,
+		"attack": 0, "defence": 0, "shields": 0, "hull": 99,
 		"accent": accent, "xp": 0, "kills": 0, "status": "healthy",
-		"is_capital": true,
+		"is_capital_body": true,
+	}
+
+
+# A destroyable turret emplacement mounted on the capital hull at x-offset.
+func _turret(p_name: String, x_offset: float, accent: Array) -> Dictionary:
+	return {
+		"name": p_name, "base_skill": 2, "skill": 2,
+		"accuracy": 1.0, "agility": 1.0, "nerve": 1.0,
+		"passive": "", "active": "", "weapon": "TURRET",
+		"attack": 3, "defence": 1, "shields": 0, "hull": 3,
+		"accent": accent, "xp": 0, "kills": 0, "status": "healthy",
+		"is_turret": true, "x_offset": x_offset,
 	}
 
 
@@ -121,11 +143,15 @@ func _enemy(p_name: String, skill: int, passive: String, weapon: String,
 
 
 # --------------------------------------------------------------- post-battle
+# Injury/death (spec 8.5): a destroyed pilot is injured if the mission was won
+# (rests one mission, then recovers) or killed if the mission was lost.
 func record_battle(player_ships: Array, won: bool) -> void:
 	last_summary.clear()
-	# Map deployed ships back to roster entries by pilot name.
+	var deployed: Dictionary = {}
+
 	for s in player_ships:
 		var ship: Ship = s as Ship
+		deployed[ship.get_pilot_name()] = true
 		var entry: Dictionary = _roster_entry(ship.get_pilot_name())
 		if entry.is_empty():
 			continue
@@ -144,21 +170,40 @@ func record_battle(player_ships: Array, won: bool) -> void:
 			line += "   LEVEL UP -> skill %d" % entry["skill"]
 
 		if ship.is_destroyed:
-			if randf() < DEATH_CHANCE:
-				entry["status"] = "dead"
-				line += "   [KIA]"
-			else:
+			if won:
 				entry["status"] = "injured"
 				line += "   [injured]"
-		elif entry.get("status", "healthy") == "injured":
-			entry["status"] = "healthy"
-			line += "   [recovered]"
+			else:
+				entry["status"] = "dead"
+				line += "   [KIA]"
 
 		last_summary.append(line)
+
+	# Pilots who sat this mission out recover from injury.
+	for entry in roster:
+		if not deployed.has(entry.get("name", "")) and entry.get("status", "healthy") == "injured":
+			entry["status"] = "healthy"
+			last_summary.append("%s  recovered from injury" % entry["name"])
+
+	_ensure_deployable()
 
 	if won:
 		mission_index += 1
 	save()
+
+
+# Guarantee the squad can always field at least one pilot next mission.
+func _ensure_deployable() -> void:
+	for entry in roster:
+		if entry.get("status", "healthy") == "healthy":
+			return
+	var revived: bool = false
+	for entry in roster:
+		if entry.get("status", "") != "dead":
+			entry["status"] = "healthy"
+			revived = true
+	if not revived:
+		_init_default_roster()
 
 
 func _roster_entry(pilot_name: String) -> Dictionary:
@@ -168,17 +213,26 @@ func _roster_entry(pilot_name: String) -> Dictionary:
 	return {}
 
 
-# Raises skill toward base_skill + xp/LEVEL_XP. Returns levels gained.
+# Skill = base_skill + number of XP milestones crossed (capped at MAX_SKILL).
+# Each level gained raises the pilot's lower stat multiplier by STAT_PER_LEVEL.
 func _apply_levels(entry: Dictionary) -> int:
+	var xp: int = int(entry.get("xp", 0))
+	var earned: int = 0
+	for thr in SKILL_STEP_THRESHOLDS:
+		if xp >= int(thr):
+			earned += 1
 	var base_skill: int = int(entry.get("base_skill", entry.get("skill", 3)))
-	@warning_ignore("integer_division")
-	var levels_from_xp: int = int(entry.get("xp", 0)) / LEVEL_XP
-	var target: int = mini(MAX_SKILL, base_skill + levels_from_xp)
+	var target: int = mini(MAX_SKILL, base_skill + earned)
 	var current: int = int(entry.get("skill", base_skill))
-	if target > current:
-		entry["skill"] = target
-		return target - current
-	return 0
+	if target <= current:
+		return 0
+	for _n in range(target - current):
+		if float(entry.get("accuracy", 1.0)) <= float(entry.get("agility", 1.0)):
+			entry["accuracy"] = float(entry.get("accuracy", 1.0)) + STAT_PER_LEVEL
+		else:
+			entry["agility"] = float(entry.get("agility", 1.0)) + STAT_PER_LEVEL
+	entry["skill"] = target
+	return target - current
 
 
 # ------------------------------------------------------------------- save/load

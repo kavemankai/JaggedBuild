@@ -16,8 +16,20 @@ const BURST_ATK_RATIO: float = 0.6
 const HEAVY_DAMAGE: int = 3
 const HEAVY_COOLDOWN_TURNS: int = 2
 
+const CAPITAL_TURRET_DAMAGE: int = 2
+const CAPITAL_TURRET_HULL: int = 3
+const CAPITAL_TURRET_COOLDOWN: int = 2
+
 const FORMATION_RANGE: float = 190.0
-const FORMATION_DEF_BONUS: float = 0.12
+
+const ION_THRESHOLD_SHIELDS: int = 2
+const ION_THRESHOLD_SYSTEM1: int = 4
+const ION_THRESHOLD_SYSTEM2: int = 6
+# Systems eligible for the >=4 / >=6 random disable. Shields are already handled
+# by the >=2 threshold via Ship.shields_disrupted().
+const ION_DISABLE_POOL: Array = ["ENGINES", "WEAPONS", "SENSORS"]
+const ION_DISABLE_MIN_ROUNDS: int = 1
+const ION_DISABLE_MAX_ROUNDS: int = 2
 
 const MARKSMAN_BONUS: float = 0.08
 const EVASIVE_BONUS: float = 0.08
@@ -41,6 +53,10 @@ func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1
 	if ManeuverSystem.is_in_rear_arc(attacker, defender):
 		eff_def = max(0, eff_def - 1)
 
+	# Formation grants +1 effective defence die (mutual defensive coverage).
+	if defender.in_formation:
+		eff_def += 1
+
 	eff_atk = clampi(eff_atk, 0, 6)
 	eff_def = clampi(eff_def, 0, 6)
 
@@ -62,8 +78,6 @@ func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1
 		final_chance -= EVADE_TOKEN_REDUCTION
 	if defender.focus_token:
 		final_chance -= FOCUS_EVADE_BONUS
-	if defender.in_formation:
-		final_chance -= FORMATION_DEF_BONUS
 
 	# Passive perks
 	if attacker.get_passive() == "MARKSMAN":
@@ -78,8 +92,9 @@ func resolve_shot(hit_chance: float) -> bool:
 	return randf() < hit_chance
 
 
-func apply_damage(ship: Ship, amount: int) -> void:
-	if ship.shields > 0:
+func apply_damage(ship: Ship, amount: int, bypass_shields: bool = false) -> void:
+	# Disrupted shields (ion >= 2) cannot absorb; capital-grade weapons bypass outright.
+	if ship.shields > 0 and not bypass_shields and not ship.shields_disrupted():
 		ship.shields -= amount
 		ship.flash_shield()
 	else:
@@ -90,9 +105,12 @@ func apply_damage(ship: Ship, amount: int) -> void:
 		ship.destroy_ship()
 
 
-# Returns Array of {chance, damage, hit} dicts. hit is false until resolved.
+# Returns Array of {chance, damage, ion, bypass, hit} dicts. hit is false until resolved.
 func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 	if not in_arc:
+		return []
+	# Primary weapon disabled by ion (sensors handled separately — no lock, hidden UI).
+	if attacker.weapons_disabled():
 		return []
 	var w: Weapon = attacker.weapon as Weapon
 	var wtype: Weapon.Type = w.weapon_type if w != null else Weapon.Type.CANNONS
@@ -102,17 +120,23 @@ func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 			var burst_atk: int = maxi(1, floori(float(attacker.attack) * BURST_ATK_RATIO)) + oc
 			var chance: float = calculate_hit_chance(attacker, defender, burst_atk)
 			return [
-				{"chance": chance, "damage": 1, "ion": 0, "hit": false},
-				{"chance": chance, "damage": 1, "ion": 0, "hit": false},
+				{"chance": chance, "damage": 1, "ion": 0, "bypass": false, "hit": false},
+				{"chance": chance, "damage": 1, "ion": 0, "bypass": false, "hit": false},
 			]
 		Weapon.Type.HEAVY:
 			if attacker.heavy_cooldown > 0:
 				return []
-			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": HEAVY_DAMAGE, "ion": 0, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": HEAVY_DAMAGE, "ion": 0, "bypass": false, "hit": false}]
 		Weapon.Type.ION:
-			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 1, "ion": 1, "hit": false}]
+			# Ion weapons deal no hull/shield damage — only ion track.
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 0, "ion": 1, "bypass": false, "hit": false}]
+		Weapon.Type.TURRET:
+			# Capital-grade emplacement: bypasses shields, cooldown between shots.
+			if attacker.heavy_cooldown > 0:
+				return []
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack), "damage": CAPITAL_TURRET_DAMAGE, "ion": 0, "bypass": true, "hit": false}]
 		_:  # CANNONS default
-			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 1, "ion": 0, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 1, "ion": 0, "bypass": false, "hit": false}]
 
 
 func _display_chance(shots: Array) -> float:
@@ -131,25 +155,17 @@ func _combat_status(ship: Ship, in_arc: bool, shots: Array) -> String:
 	return "RELOADING [%d]" % ship.heavy_cooldown
 
 
+# Formation requires both ships unstressed (mutual coverage breaks down under stress).
 func _has_nearby_ally(ship: Ship, ships: Array) -> bool:
+	if ship.stress > 0:
+		return false
 	for s in ships:
 		var t: Ship = s as Ship
-		if t == ship or t.is_destroyed or t.team != ship.team:
+		if t == ship or t.is_destroyed or t.team != ship.team or t.stress > 0:
 			continue
 		if ship.global_position.distance_to(t.global_position) <= FORMATION_RANGE:
 			return true
 	return false
-
-
-func _all_targets_in_arc(shooter: Ship, ships: Array) -> Array:
-	var out: Array = []
-	for s in ships:
-		var t: Ship = s as Ship
-		if t == shooter or t.is_destroyed or t.team == shooter.team:
-			continue
-		if ManeuverSystem.is_in_firing_arc(shooter, t):
-			out.append(t)
-	return out
 
 
 func pick_target(shooter: Ship, ships: Array) -> Ship:
@@ -157,7 +173,7 @@ func pick_target(shooter: Ship, ships: Array) -> Ship:
 	var best_dist: float = INF
 	for s in ships:
 		var t: Ship = s as Ship
-		if t == shooter or t.is_destroyed or t.team == shooter.team:
+		if t == shooter or t.is_destroyed or t.team == shooter.team or not t.is_targetable:
 			continue
 		if not ManeuverSystem.is_in_firing_arc(shooter, t):
 			continue
@@ -184,17 +200,8 @@ func run_combat(ships: Array) -> void:
 	var engagements: Array = []  # { shooter, target, shots, used_lock }
 	for s in alive:
 		var shooter: Ship = s as Ship
-		if shooter.is_capital:
-			# Capital ships fire a broadside at every enemy in their wide arc.
-			var targets: Array = _all_targets_in_arc(shooter, ships)
-			var best_chance: float = 0.0
-			for t in targets:
-				var tshots: Array = _build_shots(shooter, t, true)
-				engagements.append({
-					"shooter": shooter, "target": t, "shots": tshots, "used_lock": false,
-				})
-				best_chance = maxf(best_chance, _display_chance(tshots))
-			shooter.show_combat_ui(not targets.is_empty(), best_chance, "")
+		# The capital hull itself is scenery — it does not fire.
+		if not shooter.is_targetable:
 			continue
 
 		var target: Ship = pick_target(shooter, ships)
@@ -206,7 +213,11 @@ func run_combat(ships: Array) -> void:
 			"shots": shots,
 			"used_lock": in_arc and shooter.target_lock == target,
 		})
-		shooter.show_combat_ui(in_arc, _display_chance(shots), _combat_status(shooter, in_arc, shots))
+		# Sensors disabled by ion: firing arc/hit chance hidden from the player.
+		if shooter.sensors_disabled():
+			shooter.show_combat_ui(in_arc, 0.0, "SENSORS DOWN")
+		else:
+			shooter.show_combat_ui(in_arc, _display_chance(shots), _combat_status(shooter, in_arc, shots))
 
 	await get_tree().create_timer(1.2).timeout
 
@@ -231,17 +242,22 @@ func run_combat(ships: Array) -> void:
 		for shot in e.shots:
 			if shot.hit:
 				var was_alive: bool = not e.target.is_destroyed
-				apply_damage(e.target, shot.damage)
+				if shot.damage > 0:
+					apply_damage(e.target, shot.damage, shot.get("bypass", false))
 				if shot.ion > 0:
 					e.target.ion_tokens += shot.ion
 				if was_alive and e.target.is_destroyed:
 					e.shooter.kills += 1
 
-	# Set heavy cooldown for weapons that just fired
+	# Set cooldown for weapons that just fired (heavy + capital turret share the timer)
 	for e in engagements:
 		var w: Weapon = e.shooter.weapon as Weapon
-		if not e.shots.is_empty() and w != null and w.weapon_type == Weapon.Type.HEAVY:
+		if e.shots.is_empty() or w == null:
+			continue
+		if w.weapon_type == Weapon.Type.HEAVY:
 			e.shooter.heavy_cooldown = HEAVY_COOLDOWN_TURNS
+		elif w.weapon_type == Weapon.Type.TURRET:
+			e.shooter.heavy_cooldown = CAPITAL_TURRET_COOLDOWN
 
 	for s in alive:
 		(s as Ship).hide_combat_ui()

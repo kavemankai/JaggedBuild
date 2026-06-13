@@ -21,6 +21,9 @@ extends Node2D
 @export var pilot: Resource = null
 @export var team: String = "PLAYER"
 @export var is_capital: bool = false
+@export var is_targetable: bool = true
+@export var firing_arc_degrees: float = 90.0
+@export var firing_range_mult: float = 1.0
 
 var selected_maneuver: Maneuver = null
 var heavy_cooldown: int = 0
@@ -28,6 +31,7 @@ var is_destroyed: bool = false
 var was_bumped: bool = false
 var stress: int = 0
 var ion_tokens: int = 0
+var disabled_systems: Dictionary = {}  # system name -> rounds remaining
 var in_formation: bool = false
 var focus_token: bool = false
 var evade_token: bool = false
@@ -37,6 +41,11 @@ var ability_used: bool = false
 var overcharged: bool = false
 var kills: int = 0
 var _arc_pts: Array = []
+
+const CAPITAL_DRIFT_SPEED: float = 35.0
+const CAPITAL_DRIFT_MARGIN: float = 280.0
+var _capital_drift: bool = false
+var _drift_dir: float = 1.0
 
 @onready var _body: Sprite2D = $Body
 @onready var _firing_arc: Polygon2D = $FiringArc
@@ -50,13 +59,31 @@ func _ready() -> void:
 	_hit_label.add_theme_color_override("font_color", accent_color)
 
 
+func enable_capital_drift() -> void:
+	_capital_drift = true
+
+
+func _process(delta: float) -> void:
+	if not _capital_drift:
+		return
+	# Slow translation along the arena's long edge; reverses at the margins,
+	# shifting which player ships sit inside each turret's arc.
+	position.x += _drift_dir * CAPITAL_DRIFT_SPEED * delta
+	if position.x > ManeuverSystem.ARENA_WIDTH - CAPITAL_DRIFT_MARGIN:
+		_drift_dir = -1.0
+	elif position.x < CAPITAL_DRIFT_MARGIN:
+		_drift_dir = 1.0
+
+
 func _build_arc_polygon() -> void:
+	var half: float = deg_to_rad(firing_arc_degrees * 0.5)
+	var reach: float = ManeuverSystem.MAX_RANGE * firing_range_mult
 	var pts := PackedVector2Array()
 	pts.append(Vector2.ZERO)
-	for i in range(11):
-		var t := float(i) / 10.0
-		var angle: float = lerp(deg_to_rad(-45.0), deg_to_rad(45.0), t)
-		pts.append(Vector2(0.0, -1.0).rotated(angle) * ManeuverSystem.MAX_RANGE)
+	for i in range(13):
+		var t := float(i) / 12.0
+		var angle: float = lerp(-half, half, t)
+		pts.append(Vector2(0.0, -1.0).rotated(angle) * reach)
 	_firing_arc.polygon = pts
 	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.12)
 	_firing_arc.visible = false
@@ -138,24 +165,43 @@ func is_ionized() -> bool:
 	return ion_tokens > 0 and not is_capital
 
 
-# Turns this ship into a hulking capital ship: larger sprite and firing arc.
+func _system_down(system_name: String) -> bool:
+	return not is_capital and int(disabled_systems.get(system_name, 0)) > 0
+
+
+func shields_disrupted() -> bool:
+	if is_capital:
+		return false
+	return ion_tokens >= CombatSystem.ION_THRESHOLD_SHIELDS or _system_down("SHIELDS")
+
+
+func engines_disabled() -> bool:
+	return _system_down("ENGINES")
+
+
+func weapons_disabled() -> bool:
+	return _system_down("WEAPONS")
+
+
+func sensors_disabled() -> bool:
+	return _system_down("SENSORS")
+
+
+# Turns this ship into a hulking capital-ship hull: large, non-targetable scenery
+# that mounts turrets. The hull itself does not fire and cannot be destroyed.
 func make_capital() -> void:
 	is_capital = true
-	_body.scale = Vector2(7.0, 7.0)
-	_capital_rebuild_arc()
-
-
-func _capital_rebuild_arc() -> void:
-	var pts := PackedVector2Array()
-	pts.append(Vector2.ZERO)
-	for i in range(13):
-		var t := float(i) / 12.0
-		# Wide broadside arc (~150 degrees) with extended range.
-		var angle: float = lerp(deg_to_rad(-75.0), deg_to_rad(75.0), t)
-		pts.append(Vector2(0.0, -1.0).rotated(angle) * (ManeuverSystem.MAX_RANGE * 1.2))
-	_firing_arc.polygon = pts
-	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.12)
+	is_targetable = false
+	_body.scale = Vector2(9.0, 5.0)
 	_firing_arc.visible = false
+
+
+# Makes this ship a capital turret: a wide-arc emplacement with its own hull.
+func make_turret() -> void:
+	firing_arc_degrees = 120.0
+	firing_range_mult = 1.1
+	_body.scale = Vector2(2.0, 2.0)
+	_build_arc_polygon()
 
 
 func get_maneuver_color(bearing: String) -> String:

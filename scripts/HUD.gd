@@ -139,17 +139,28 @@ func _weapon_text(ship: Ship) -> String:
 			return "Missiles"
 		Weapon.Type.ION:
 			return "Ion"
+		Weapon.Type.TURRET:
+			if ship.heavy_cooldown > 0:
+				return "Turret [cd:%d]" % ship.heavy_cooldown
+			return "Turret"
 	return "Cannons"
 
 
 func _status_text(ship: Ship) -> String:
 	if ship.is_destroyed:
 		return "DOWN"
-	if ship.is_ionized():
-		return "ION×%d" % ship.ion_tokens
+	var parts: Array = []
 	if ship.stress > 0:
-		return "S×%d" % ship.stress
-	return ""
+		parts.append("S%d" % ship.stress)
+	if ship.ion_tokens > 0:
+		parts.append("I%d" % ship.ion_tokens)
+	if ship.engines_disabled():
+		parts.append("ENG")
+	if ship.weapons_disabled():
+		parts.append("WPN")
+	if ship.sensors_disabled():
+		parts.append("SEN")
+	return " ".join(parts)
 
 
 func _token_text(ship: Ship) -> String:

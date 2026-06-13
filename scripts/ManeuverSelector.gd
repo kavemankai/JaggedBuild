@@ -31,6 +31,7 @@ func _populate() -> void:
 
 	_grid.columns = _ship.bearing_options.size()
 	var stressed: bool = _ship.stress > 0
+	var engines_out: bool = _ship.engines_disabled()
 
 	for spd: int in _ship.speed_options:
 		for bearing: String in _ship.bearing_options:
@@ -45,6 +46,9 @@ func _populate() -> void:
 			if stressed and is_red:
 				btn.disabled = true
 				btn.tooltip_text = "STRESSED — red maneuvers unavailable"
+			elif engines_out and move_color != "WHITE":
+				btn.disabled = true
+				btn.tooltip_text = "ENGINES DISABLED — white maneuvers only"
 
 			if _is_selected(bearing, spd):
 				btn.add_theme_color_override("font_color", Color(1.0, 1.0, 0.4, 1.0))

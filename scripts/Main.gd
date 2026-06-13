@@ -44,7 +44,9 @@ func _ready() -> void:
 	planning_strip.setup(_player_ships, _ghosts)
 	planning_strip.all_confirmed.connect(_on_all_confirmed)
 
-	hud.setup_ships(_ships)
+	# HUD lists combatants only — the capital hull is non-targetable scenery.
+	var hud_ships: Array = _ships.filter(func(s): return (s as Ship).is_targetable)
+	hud.setup_ships(hud_ships)
 	hud.set_mission_label(mission.get("name", ""))
 
 	RoundManager.register_ships(_ships)
@@ -78,24 +80,51 @@ func _deploy_player_team() -> Array:
 func _deploy_enemies(mission: Dictionary) -> Array:
 	var specs: Array = mission.get("enemies", [])
 	var enemies: Array = []
-	for i in range(specs.size()):
-		var spec: Dictionary = specs[i]
+	var capital_body: Ship = null
+	var slot_i: int = 0
+
+	for spec in specs:
 		var ship: Ship = SHIP_SCENE.instantiate()
 		ship.ship_texture = AI_TEXTURE
-		ships_root.add_child(ship)
 		ship.team = "ENEMY"
-		if spec.get("is_capital", false):
-			ship.speed_options = [1]
-			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT"]
+
+		if spec.get("is_capital_body", false):
+			ships_root.add_child(ship)
+			ship.speed_options = []
+			ship.bearing_options = []
+			_apply_spec(ship, spec)
+			ship.make_capital()
+			ship.position = Vector2(800, 150)
+			ship.rotation = 0.0
+			ship.enable_capital_drift()
+			capital_body = ship
+
+		elif spec.get("is_turret", false):
+			# Mount on the capital hull so the turret drifts with it. Turrets never move.
+			if capital_body != null:
+				capital_body.add_child(ship)
+			else:
+				ships_root.add_child(ship)
+			ship.speed_options = []
+			ship.bearing_options = []
+			_apply_spec(ship, spec)
+			ship.make_turret()
+			if capital_body != null:
+				ship.position = Vector2(float(spec.get("x_offset", 0.0)), 70.0)
+			else:
+				ship.position = Vector2(800.0 + float(spec.get("x_offset", 0.0)), 220.0)
+			ship.rotation = PI
+
 		else:
+			ships_root.add_child(ship)
 			ship.speed_options = [1, 2, 3]
 			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
-		_apply_spec(ship, spec)
-		if spec.get("is_capital", false):
-			ship.make_capital()
-		var slot: Array = ENEMY_SLOTS[i % ENEMY_SLOTS.size()]
-		ship.position = slot[0]
-		ship.rotation = slot[1]
+			_apply_spec(ship, spec)
+			var slot: Array = ENEMY_SLOTS[slot_i % ENEMY_SLOTS.size()]
+			slot_i += 1
+			ship.position = slot[0]
+			ship.rotation = slot[1]
+
 		enemies.append(ship)
 	return enemies
 
@@ -147,6 +176,7 @@ func _weapon_type(weapon_name: String) -> Weapon.Type:
 		"HEAVY": return Weapon.Type.HEAVY
 		"ION": return Weapon.Type.ION
 		"MISSILES": return Weapon.Type.MISSILES
+		"TURRET": return Weapon.Type.TURRET
 		_: return Weapon.Type.CANNONS
 
 
@@ -160,6 +190,10 @@ func _on_planning_started() -> void:
 	for s in _enemy_ships:
 		var ship: Ship = s as Ship
 		if ship.is_destroyed:
+			continue
+		# Capital hull is scenery; turrets are fixed emplacements — neither manoeuvres.
+		if not ship.is_targetable or ship.bearing_options.is_empty():
+			ship.selected_action = ai_controller.select_action(ship, _ships)
 			continue
 		var m: Maneuver = ai_controller.select_maneuver(ship, _ships, avoid_points)
 		ship.selected_maneuver = m

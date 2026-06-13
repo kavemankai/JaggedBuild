@@ -38,18 +38,12 @@ func _build_cards() -> void:
 		_cards.append(card)
 
 
-# New planning round: clear friendly selections (ion-locked ships keep a forced run).
+# New planning round: clear friendly selections.
 func reset() -> void:
 	_selector.close()
 	for s in _ships:
 		var ship: Ship = s as Ship
-		if ship.is_ionized():
-			var forced := Maneuver.new()
-			forced.bearing = "STRAIGHT"
-			forced.speed = 1
-			ship.selected_maneuver = forced
-		else:
-			ship.selected_maneuver = null
+		ship.selected_maneuver = null
 		ship.selected_action = "FOCUS"
 	refresh()
 

@@ -8,18 +8,17 @@ const SPREAD_PENALTY: float = 8.0
 # avoid_points: end positions already chosen by other AI ships this round, so this
 # ship can spread out instead of clustering into a single crossfire.
 func select_maneuver(ai_ship: Ship, ships: Array, avoid_points: Array = []) -> Maneuver:
-	if ai_ship.is_ionized():
-		var forced := Maneuver.new()
-		forced.bearing = "STRAIGHT"
-		forced.speed = 1
-		return forced
-
+	var engines_out: bool = ai_ship.engines_disabled()
 	var target: Ship = _highest_threat(ai_ship, ships)
 	var best_maneuver: Maneuver = null
 	var best_score: float = -INF
 
 	for bearing in ai_ship.bearing_options:
-		if ai_ship.stress > 0 and ai_ship.get_maneuver_color(bearing) == "RED":
+		var color: String = ai_ship.get_maneuver_color(bearing)
+		if ai_ship.stress > 0 and color == "RED":
+			continue
+		# Disabled engines: only white (neutral) maneuvers remain available.
+		if engines_out and color != "WHITE":
 			continue
 		for speed in ai_ship.speed_options:
 			var m := Maneuver.new()
@@ -49,9 +48,10 @@ func select_action(ai_ship: Ship, ships: Array) -> String:
 		if ab == "OVERCHARGE" and in_arc and ai_ship.stress == 0:
 			return "ABILITY"
 
-	if ai_ship.stress > 0 or ai_ship.is_ionized():
+	if ai_ship.stress > 0:
 		return ""
-	if in_arc:
+	# Disabled sensors prevent acquiring a target lock.
+	if in_arc and not ai_ship.sensors_disabled():
 		# Focus fire is valid coordination — several AI ships locking the same threat is fine.
 		return "TARGET_LOCK" if ai_ship.target_lock == null else "FOCUS"
 	return "FOCUS"
@@ -63,7 +63,7 @@ func _highest_threat(ai_ship: Ship, ships: Array) -> Ship:
 	var best_score: float = -INF
 	for s in ships:
 		var t: Ship = s as Ship
-		if t.is_destroyed or t.team == ai_ship.team:
+		if t.is_destroyed or t.team == ai_ship.team or not t.is_targetable:
 			continue
 		var d: float = ai_ship.global_position.distance_to(t.global_position)
 		var score: float = float(t.attack) * 100.0 - d

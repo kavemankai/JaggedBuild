@@ -75,25 +75,44 @@ func refresh() -> void:
 		_maneuver_label.text = "— no orders —"
 		_maneuver_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.3, 1.0))
 
-	# Ionized friendly ships are locked to a forced straight run.
-	var locked: bool = ship.is_ionized()
-	_change_btn.disabled = locked
-	if locked:
-		_maneuver_label.text = "IONIZED — STRAIGHT 1"
+	# Ion system-disruption banner (engines restrict to white maneuvers, etc.)
+	var ion_note: String = _ion_note()
+	if ion_note != "":
+		_maneuver_label.text += "   " + ion_note if ship.selected_maneuver != null else ion_note
 		_maneuver_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0, 1.0))
 
-	# Reflect the selected action and grey actions out under stress.
+	# Reflect the selected action and grey actions out under stress / disruption.
 	var stressed: bool = ship.stress > 0
 	for btn in _action_row.get_children():
 		if btn is Button:
 			var key: String = btn.get_meta("action_key", "")
 			btn.set_pressed_no_signal(key == ship.selected_action)
-			if key == "ABILITY":
-				btn.disabled = ship.ability_used
-			else:
-				btn.disabled = stressed
+			match key:
+				"ABILITY":
+					btn.disabled = ship.ability_used
+				"BOOST":
+					btn.disabled = stressed or ship.engines_disabled()
+				"TARGET_LOCK":
+					btn.disabled = stressed or ship.sensors_disabled()
+				_:
+					btn.disabled = stressed
 
-	_update_stress_border(stressed or ship.is_ionized())
+	_update_stress_border(stressed or ship.ion_tokens > 0 or not ship.disabled_systems.is_empty())
+
+
+func _ion_note() -> String:
+	var parts: Array = []
+	if ship.ion_tokens > 0:
+		parts.append("ION%d" % ship.ion_tokens)
+	if ship.engines_disabled():
+		parts.append("ENG✕")
+	if ship.weapons_disabled():
+		parts.append("WPN✕")
+	if ship.sensors_disabled():
+		parts.append("SEN✕")
+	if ship.shields_disrupted():
+		parts.append("SHLD✕")
+	return " ".join(parts)
 
 
 func _update_stress_border(active: bool) -> void:
