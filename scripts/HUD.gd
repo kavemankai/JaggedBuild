@@ -82,9 +82,10 @@ func _on_game_ended(message: String, color: Color) -> void:
 
 
 func _weapon_text(ship: Ship) -> String:
-	if ship.weapon == null:
+	var w: Weapon = ship.weapon as Weapon
+	if w == null:
 		return "Cannons"
-	match ship.weapon.weapon_type:
+	match w.weapon_type:
 		Weapon.Type.BURST:
 			return "Burst ×2"
 		Weapon.Type.HEAVY:

@@ -17,7 +17,7 @@ extends Node2D
 @export var defence: int = 2
 @export var shields: int = 2
 @export var hull: int = 3
-@export var weapon: Weapon = null
+@export var weapon: Resource = null
 
 var selected_maneuver: Maneuver = null
 var heavy_cooldown: int = 0

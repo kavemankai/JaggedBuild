@@ -66,9 +66,8 @@ func apply_damage(ship: Ship, amount: int) -> void:
 func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 	if not in_arc:
 		return []
-	var wtype: Weapon.Type = Weapon.Type.CANNONS
-	if attacker.weapon != null:
-		wtype = attacker.weapon.weapon_type
+	var w: Weapon = attacker.weapon as Weapon
+	var wtype: Weapon.Type = w.weapon_type if w != null else Weapon.Type.CANNONS
 	match wtype:
 		Weapon.Type.BURST:
 			var burst_atk: int = maxi(1, floori(float(attacker.attack) * BURST_ATK_RATIO))
@@ -98,7 +97,6 @@ func _display_chance(shots: Array) -> float:
 func _combat_status(ship: Ship, in_arc: bool, shots: Array) -> String:
 	if not in_arc or not shots.is_empty():
 		return ""
-	# In arc but no shots — must be heavy on cooldown
 	return "RELOADING [%d]" % ship.heavy_cooldown
 
 
@@ -152,9 +150,11 @@ func run_combat(ships: Array) -> void:
 			apply_damage(ship_a, shot.damage)
 
 	# Set heavy cooldown for weapons that just fired
-	if not a_shots.is_empty() and ship_a.weapon != null and ship_a.weapon.weapon_type == Weapon.Type.HEAVY:
+	var wa: Weapon = ship_a.weapon as Weapon
+	var wb: Weapon = ship_b.weapon as Weapon
+	if not a_shots.is_empty() and wa != null and wa.weapon_type == Weapon.Type.HEAVY:
 		ship_a.heavy_cooldown = HEAVY_COOLDOWN_TURNS
-	if not b_shots.is_empty() and ship_b.weapon != null and ship_b.weapon.weapon_type == Weapon.Type.HEAVY:
+	if not b_shots.is_empty() and wb != null and wb.weapon_type == Weapon.Type.HEAVY:
 		ship_b.heavy_cooldown = HEAVY_COOLDOWN_TURNS
 
 	ship_a.hide_combat_ui()
