@@ -13,14 +13,24 @@ func execute_actions(ships: Array) -> void:
 			"EVADE":
 				s.evade_token = true
 			"TARGET_LOCK":
-				for other in ships:
-					var t: Ship = other as Ship
-					if t != s and not t.is_destroyed:
-						s.target_lock = t
-						break
+				s.target_lock = _nearest_enemy(s, ships)
 			"BOOST":
 				await _execute_boost(s)
 		s.selected_action = ""
+
+
+func _nearest_enemy(ship: Ship, ships: Array) -> Ship:
+	var best: Ship = null
+	var best_dist: float = INF
+	for other in ships:
+		var t: Ship = other as Ship
+		if t == ship or t.is_destroyed or t.team == ship.team:
+			continue
+		var d: float = ship.global_position.distance_to(t.global_position)
+		if d < best_dist:
+			best_dist = d
+			best = t
+	return best
 
 
 func _execute_boost(ship: Ship) -> void:

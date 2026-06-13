@@ -21,6 +21,10 @@ color = Color(0.04, 0.04, 0.12, 1.0)
 [node name="PlayerShip" parent="Ships" instance=ExtResource("2")]
 position = Vector2(800, 600)
 
+[node name="WingShip" parent="Ships" instance=ExtResource("2")]
+position = Vector2(960, 620)
+accent_color = Color(0.3, 0.8, 1.0, 1.0)
+
 [node name="AIShip" parent="Ships" instance=ExtResource("2")]
 position = Vector2(800, 300)
 rotation = 3.14159265

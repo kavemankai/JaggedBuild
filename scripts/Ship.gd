@@ -19,6 +19,7 @@ extends Node2D
 @export var hull: int = 3
 @export var weapon: Resource = null
 @export var pilot: Resource = null
+@export var team: String = "PLAYER"
 
 var selected_maneuver: Maneuver = null
 var heavy_cooldown: int = 0
@@ -30,6 +31,7 @@ var focus_token: bool = false
 var evade_token: bool = false
 var target_lock: Ship = null
 var selected_action: String = ""
+var order: String = "ENGAGE"
 var _arc_pts: Array = []
 
 @onready var _body: Sprite2D = $Body

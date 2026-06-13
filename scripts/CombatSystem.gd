@@ -115,85 +115,97 @@ func _combat_status(ship: Ship, in_arc: bool, shots: Array) -> String:
 	return "RELOADING [%d]" % ship.heavy_cooldown
 
 
+func pick_target(shooter: Ship, ships: Array) -> Ship:
+	var best: Ship = null
+	var best_dist: float = INF
+	for s in ships:
+		var t: Ship = s as Ship
+		if t == shooter or t.is_destroyed or t.team == shooter.team:
+			continue
+		if not ManeuverSystem.is_in_firing_arc(shooter, t):
+			continue
+		var d: float = shooter.global_position.distance_to(t.global_position)
+		if d < best_dist:
+			best_dist = d
+			best = t
+	return best
+
+
 func run_combat(ships: Array) -> void:
 	var alive: Array = ships.filter(func(s: Ship): return not s.is_destroyed)
 	if alive.size() < 2:
 		return
 
-	var ship_a: Ship = alive[0]
-	var ship_b: Ship = alive[1]
-
 	# Tick heavy weapon cooldowns
-	if ship_a.heavy_cooldown > 0:
-		ship_a.heavy_cooldown -= 1
-	if ship_b.heavy_cooldown > 0:
-		ship_b.heavy_cooldown -= 1
+	for s in alive:
+		var sh: Ship = s as Ship
+		if sh.heavy_cooldown > 0:
+			sh.heavy_cooldown -= 1
 
-	var a_in_arc: bool = ManeuverSystem.is_in_firing_arc(ship_a, ship_b)
-	var b_in_arc: bool = ManeuverSystem.is_in_firing_arc(ship_b, ship_a)
-	var a_used_lock: bool = a_in_arc and ship_a.target_lock == ship_b
-	var b_used_lock: bool = b_in_arc and ship_b.target_lock == ship_a
-
-	var a_shots: Array = _build_shots(ship_a, ship_b, a_in_arc)
-	var b_shots: Array = _build_shots(ship_b, ship_a, b_in_arc)
-
-	ship_a.show_combat_ui(a_in_arc, _display_chance(a_shots), _combat_status(ship_a, a_in_arc, a_shots))
-	ship_b.show_combat_ui(b_in_arc, _display_chance(b_shots), _combat_status(ship_b, b_in_arc, b_shots))
+	# Each shooter picks a target and builds its shots
+	var engagements: Array = []  # { shooter, target, shots, used_lock }
+	for s in alive:
+		var shooter: Ship = s as Ship
+		var target: Ship = pick_target(shooter, ships)
+		var in_arc: bool = target != null
+		var shots: Array = _build_shots(shooter, target, in_arc) if in_arc else []
+		engagements.append({
+			"shooter": shooter,
+			"target": target,
+			"shots": shots,
+			"used_lock": in_arc and shooter.target_lock == target,
+		})
+		shooter.show_combat_ui(in_arc, _display_chance(shots), _combat_status(shooter, in_arc, shots))
 
 	await get_tree().create_timer(1.2).timeout
 
-	# Resolve all shots — store results before applying any
-	for shot in a_shots:
-		shot.hit = resolve_shot(shot.chance)
-	for shot in b_shots:
-		shot.hit = resolve_shot(shot.chance)
+	# Resolve all shots — store results before applying any damage
+	for e in engagements:
+		for shot in e.shots:
+			shot.hit = resolve_shot(shot.chance)
 
 	# Draw shots simultaneously
-	for shot in a_shots:
-		_draw_shot(ship_a.global_position, ship_b.global_position, ship_a.accent_color, shot.hit)
-	for shot in b_shots:
-		_draw_shot(ship_b.global_position, ship_a.global_position, ship_b.accent_color, shot.hit)
+	for e in engagements:
+		if e.target == null:
+			continue
+		for shot in e.shots:
+			_draw_shot(e.shooter.global_position, e.target.global_position, e.shooter.accent_color, shot.hit)
 
 	await get_tree().create_timer(SHOT_ANIM_DURATION + 0.1).timeout
 
 	# Apply all damage simultaneously
-	for shot in a_shots:
-		if shot.hit:
-			apply_damage(ship_b, shot.damage)
-			if shot.ion > 0:
-				ship_b.ion_tokens += shot.ion
-	for shot in b_shots:
-		if shot.hit:
-			apply_damage(ship_a, shot.damage)
-			if shot.ion > 0:
-				ship_a.ion_tokens += shot.ion
+	for e in engagements:
+		if e.target == null:
+			continue
+		for shot in e.shots:
+			if shot.hit:
+				apply_damage(e.target, shot.damage)
+				if shot.ion > 0:
+					e.target.ion_tokens += shot.ion
 
 	# Set heavy cooldown for weapons that just fired
-	var wa: Weapon = ship_a.weapon as Weapon
-	var wb: Weapon = ship_b.weapon as Weapon
-	if not a_shots.is_empty() and wa != null and wa.weapon_type == Weapon.Type.HEAVY:
-		ship_a.heavy_cooldown = HEAVY_COOLDOWN_TURNS
-	if not b_shots.is_empty() and wb != null and wb.weapon_type == Weapon.Type.HEAVY:
-		ship_b.heavy_cooldown = HEAVY_COOLDOWN_TURNS
+	for e in engagements:
+		var w: Weapon = e.shooter.weapon as Weapon
+		if not e.shots.is_empty() and w != null and w.weapon_type == Weapon.Type.HEAVY:
+			e.shooter.heavy_cooldown = HEAVY_COOLDOWN_TURNS
 
-	ship_a.hide_combat_ui()
-	ship_b.hide_combat_ui()
+	for s in alive:
+		(s as Ship).hide_combat_ui()
 
 	await get_tree().create_timer(0.4).timeout
 
 	# Consume per-round tokens
-	ship_a.focus_token = false
-	ship_b.focus_token = false
-	ship_a.evade_token = false
-	ship_b.evade_token = false
-	if a_used_lock:
-		ship_a.target_lock = null
-	if b_used_lock:
-		ship_b.target_lock = null
-	if ship_a.target_lock != null and ship_a.target_lock.is_destroyed:
-		ship_a.target_lock = null
-	if ship_b.target_lock != null and ship_b.target_lock.is_destroyed:
-		ship_b.target_lock = null
+	for s in alive:
+		var sh: Ship = s as Ship
+		sh.focus_token = false
+		sh.evade_token = false
+	for e in engagements:
+		if e.used_lock:
+			e.shooter.target_lock = null
+	for s in alive:
+		var sh: Ship = s as Ship
+		if sh.target_lock != null and sh.target_lock.is_destroyed:
+			sh.target_lock = null
 
 
 func _draw_shot(from: Vector2, to: Vector2, color: Color, is_hit: bool) -> void:

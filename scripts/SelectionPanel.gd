@@ -5,8 +5,10 @@ signal maneuver_confirmed(maneuver: Maneuver)
 @onready var grid: GridContainer = $Panel/VBox/Grid
 @onready var ready_label: Label = $Panel/VBox/Ready
 @onready var _action_row: HBoxContainer = $Panel/VBox/ActionRow
+@onready var _orders_row: HBoxContainer = $Panel/VBox/OrdersRow
 
 var ship: Ship = null
+var wingman: Ship = null
 var ghost_ship: Node2D = null
 var confirmed: bool = false
 
@@ -17,6 +19,11 @@ func setup(ship_node: Ship, ghost_node: Node2D) -> void:
 	grid.columns = ship.bearing_options.size()
 	_populate_grid()
 	_populate_actions()
+
+
+func setup_wingman(wing_node: Ship) -> void:
+	wingman = wing_node
+	_populate_orders()
 
 
 func _populate_grid() -> void:
@@ -57,6 +64,38 @@ func _populate_actions() -> void:
 		btn.set_meta("action_key", key)
 		btn.toggled.connect(_on_action_toggled.bind(key))
 		_action_row.add_child(btn)
+
+
+func _populate_orders() -> void:
+	for child in _orders_row.get_children():
+		child.queue_free()
+
+	var orders := [["ENGAGE", "ENGAGE"], ["FORM UP", "FORM_UP"], ["EVADE", "EVADE"]]
+	for entry in orders:
+		var label: String = entry[0]
+		var key: String = entry[1]
+		var btn := Button.new()
+		btn.text = label
+		btn.custom_minimum_size = Vector2(148, 34)
+		btn.toggle_mode = true
+		btn.set_meta("order_key", key)
+		btn.button_pressed = (wingman != null and wingman.order == key)
+		btn.toggled.connect(_on_order_toggled.bind(key))
+		_orders_row.add_child(btn)
+
+
+func _on_order_toggled(button_pressed: bool, order_key: String) -> void:
+	if not button_pressed:
+		# Don't allow deselecting the active order; re-press it.
+		for btn in _orders_row.get_children():
+			if btn is Button and btn.get_meta("order_key", "") == order_key:
+				btn.button_pressed = true
+		return
+	if wingman != null:
+		wingman.order = order_key
+	for btn in _orders_row.get_children():
+		if btn is Button and btn.get_meta("order_key", "") != order_key:
+			btn.button_pressed = false
 
 
 func _on_hover(maneuver: Maneuver) -> void:

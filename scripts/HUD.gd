@@ -2,32 +2,14 @@ extends CanvasLayer
 
 @onready var _round_label: Label = $Info/Round
 @onready var _phase_label: Label = $Info/Phase
-@onready var _p_name: Label = $HealthBars/PlayerRow/PlayerName
-@onready var _p_shields: ProgressBar = $HealthBars/PlayerRow/PlayerShields
-@onready var _p_hull: ProgressBar = $HealthBars/PlayerRow/PlayerHull
-@onready var _p_tokens: Label = $HealthBars/PlayerRow/PlayerTokens
-@onready var _p_stress: Label = $HealthBars/PlayerRow/PlayerStress
-@onready var _p_weapon: Label = $HealthBars/PlayerRow/PlayerWeapon
-@onready var _ai_name: Label = $HealthBars/AIRow/AIName
-@onready var _ai_shields: ProgressBar = $HealthBars/AIRow/AIShields
-@onready var _ai_hull: ProgressBar = $HealthBars/AIRow/AIHull
-@onready var _ai_tokens: Label = $HealthBars/AIRow/AITokens
-@onready var _ai_stress: Label = $HealthBars/AIRow/AIStress
-@onready var _ai_weapon: Label = $HealthBars/AIRow/AIWeapon
+@onready var _health_bars: VBoxContainer = $HealthBars
 @onready var _result: Label = $Result
 
-var _player_ship: Ship = null
-var _ai_ship: Ship = null
-var _p_hull_low: bool = false
-var _ai_hull_low: bool = false
+var _ships: Array = []
+var _rows: Array = []  # parallel to _ships: { shields, hull, tokens, status, weapon, hull_low }
 
 
 func _ready() -> void:
-	_style_bar(_p_shields, Color(0.2, 0.4, 0.9))
-	_style_bar(_ai_shields, Color(0.2, 0.4, 0.9))
-	_style_bar(_p_hull, Color(0.9, 0.5, 0.1))
-	_style_bar(_ai_hull, Color(0.9, 0.5, 0.1))
-
 	RoundManager.planning_phase_started.connect(func():
 		_round_label.text = "Round %d" % RoundManager.round_number
 		_phase_label.text = "PLANNING")
@@ -42,41 +24,85 @@ func _ready() -> void:
 	RoundManager.game_ended.connect(_on_game_ended)
 
 
-func setup_ships(player_ship: Ship, ai_ship: Ship) -> void:
-	_player_ship = player_ship
-	_ai_ship = ai_ship
-	_p_shields.max_value = player_ship.shields
-	_p_hull.max_value = player_ship.hull
-	_ai_shields.max_value = ai_ship.shields
-	_ai_hull.max_value = ai_ship.hull
-	_p_name.text = player_ship.get_pilot_name() + " [%d]" % player_ship.get_skill()
-	_ai_name.text = ai_ship.get_pilot_name() + " [%d]" % ai_ship.get_skill()
+func setup_ships(ships: Array) -> void:
+	_ships = ships
+	for child in _health_bars.get_children():
+		child.queue_free()
+	_rows.clear()
+
+	for s in ships:
+		var ship: Ship = s as Ship
+		var row := HBoxContainer.new()
+		_health_bars.add_child(row)
+
+		var name_label := Label.new()
+		name_label.custom_minimum_size = Vector2(80, 0)
+		name_label.text = ship.get_pilot_name() + " [%d]" % ship.get_skill()
+		name_label.modulate = ship.accent_color
+		row.add_child(name_label)
+
+		var shields := ProgressBar.new()
+		shields.custom_minimum_size = Vector2(70, 16)
+		shields.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shields.max_value = maxi(1, ship.shields)
+		shields.value = ship.shields
+		shields.show_percentage = false
+		_style_bar(shields, Color(0.2, 0.4, 0.9))
+		row.add_child(shields)
+
+		var gap := Label.new()
+		gap.text = " "
+		row.add_child(gap)
+
+		var hull := ProgressBar.new()
+		hull.custom_minimum_size = Vector2(70, 16)
+		hull.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hull.max_value = maxi(1, ship.hull)
+		hull.value = ship.hull
+		hull.show_percentage = false
+		_style_bar(hull, Color(0.9, 0.5, 0.1))
+		row.add_child(hull)
+
+		var tokens := Label.new()
+		tokens.custom_minimum_size = Vector2(40, 0)
+		tokens.modulate = Color(0.95, 0.85, 0.2, 1.0)
+		row.add_child(tokens)
+
+		var status := Label.new()
+		status.custom_minimum_size = Vector2(48, 0)
+		status.modulate = Color(1.0, 0.3, 0.3, 1.0)
+		row.add_child(status)
+
+		var weapon := Label.new()
+		weapon.custom_minimum_size = Vector2(110, 0)
+		weapon.modulate = Color(0.7, 0.7, 0.9, 1.0)
+		row.add_child(weapon)
+
+		_rows.append({
+			"shields": shields,
+			"hull": hull,
+			"tokens": tokens,
+			"status": status,
+			"weapon": weapon,
+			"hull_low": false,
+		})
 
 
 func _process(_delta: float) -> void:
-	if _player_ship == null:
-		return
-	_p_shields.value = _player_ship.shields
-	_p_hull.value = _player_ship.hull
-	_ai_shields.value = _ai_ship.shields
-	_ai_hull.value = _ai_ship.hull
+	for i in range(_ships.size()):
+		var ship: Ship = _ships[i] as Ship
+		var row: Dictionary = _rows[i]
 
-	_p_tokens.text = _token_text(_player_ship)
-	_ai_tokens.text = _token_text(_ai_ship)
-	_p_stress.text = _status_text(_player_ship)
-	_ai_stress.text = _status_text(_ai_ship)
-	_p_weapon.text = _weapon_text(_player_ship)
-	_ai_weapon.text = _weapon_text(_ai_ship)
+		row.shields.value = ship.shields
+		row.hull.value = ship.hull
+		row.tokens.text = _token_text(ship)
+		row.status.text = _status_text(ship)
+		row.weapon.text = _weapon_text(ship)
 
-	var p_low := _player_ship.hull <= _p_hull.max_value * 0.5
-	if p_low != _p_hull_low:
-		_p_hull_low = p_low
-		_style_bar(_p_hull, Color(0.9, 0.15, 0.1) if p_low else Color(0.9, 0.5, 0.1))
-
-	var ai_low := _ai_ship.hull <= _ai_hull.max_value * 0.5
-	if ai_low != _ai_hull_low:
-		_ai_hull_low = ai_low
-		_style_bar(_ai_hull, Color(0.9, 0.15, 0.1) if ai_low else Color(0.9, 0.5, 0.1))
+		var low: bool = ship.hull <= row.hull.max_value * 0.5
+		if low != row.hull_low:
+			row.hull_low = low
+			_style_bar(row.hull, Color(0.9, 0.15, 0.1) if low else Color(0.9, 0.5, 0.1))
 
 
 func _on_game_ended(message: String, color: Color) -> void:
@@ -104,6 +130,8 @@ func _weapon_text(ship: Ship) -> String:
 
 
 func _status_text(ship: Ship) -> String:
+	if ship.is_destroyed:
+		return "DOWN"
 	if ship.is_ionized():
 		return "ION×%d" % ship.ion_tokens
 	if ship.stress > 0:

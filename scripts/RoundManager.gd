@@ -82,17 +82,25 @@ func _evaluate() -> void:
 		if s.ion_tokens > 0:
 			s.ion_tokens -= 1
 
-	var player_dead: bool = ships.size() > 0 and (ships[0] as Ship).is_destroyed
-	var ai_dead: bool = ships.size() > 1 and (ships[1] as Ship).is_destroyed
+	var player_alive: bool = _team_alive("PLAYER")
+	var enemy_alive: bool = _team_alive("ENEMY")
 
-	if player_dead and ai_dead:
+	if not player_alive and not enemy_alive:
 		_end_game("MUTUAL DESTRUCTION", Color.WHITE)
-	elif player_dead:
-		_end_game("SHIP DESTROYED", Color(1.0, 0.2, 0.2, 1.0))
-	elif ai_dead:
-		_end_game("ENEMY DESTROYED", Color(0.2, 1.0, 0.2, 1.0))
+	elif not player_alive:
+		_end_game("SQUADRON LOST", Color(1.0, 0.2, 0.2, 1.0))
+	elif not enemy_alive:
+		_end_game("ENEMIES DESTROYED", Color(0.2, 1.0, 0.2, 1.0))
 	else:
 		begin_round()
+
+
+func _team_alive(team_name: String) -> bool:
+	for ship in ships:
+		var s: Ship = ship as Ship
+		if s.team == team_name and not s.is_destroyed:
+			return true
+	return false
 
 
 func _end_game(message: String, color: Color) -> void:

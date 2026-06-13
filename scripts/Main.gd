@@ -1,18 +1,27 @@
 extends Node2D
 
 @onready var player_ship: Ship = $Ships/PlayerShip
+@onready var wing_ship: Ship = $Ships/WingShip
 @onready var ai_ship: Ship = $Ships/AIShip
 @onready var ghost_ship: Node2D = $GhostShip
 @onready var selection_panel: Control = $UI/SelectionPanel
 @onready var ai_controller: Node = $AIController
 
 var _game_over: bool = false
+var _ships: Array = []
 
 
 func _ready() -> void:
+	player_ship.team = "PLAYER"
 	player_ship.speed_options = [1, 2, 3, 4]
 	player_ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
 
+	wing_ship.team = "PLAYER"
+	wing_ship.speed_options = [1, 2, 3, 4]
+	wing_ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
+	wing_ship.order = "ENGAGE"
+
+	ai_ship.team = "ENEMY"
 	ai_ship.speed_options = [1, 2, 3]
 	ai_ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
 	ai_ship.attack = 2
@@ -24,6 +33,11 @@ func _ready() -> void:
 	heavy.weapon_type = Weapon.Type.HEAVY
 	heavy.display_name = "Heavy Cannon"
 	player_ship.weapon = heavy
+
+	var wing_weapon := Weapon.new()
+	wing_weapon.weapon_type = Weapon.Type.BURST
+	wing_weapon.display_name = "Burst Fire"
+	wing_ship.weapon = wing_weapon
 
 	var ion := Weapon.new()
 	ion.weapon_type = Weapon.Type.ION
@@ -38,6 +52,14 @@ func _ready() -> void:
 	player_pilot.nerve = 0.3
 	player_ship.pilot = player_pilot
 
+	var wing_pilot := Pilot.new()
+	wing_pilot.pilot_name = "HAWK"
+	wing_pilot.skill = 4
+	wing_pilot.accuracy = 1.0
+	wing_pilot.agility = 1.0
+	wing_pilot.nerve = 0.2
+	wing_ship.pilot = wing_pilot
+
 	var ai_pilot := Pilot.new()
 	ai_pilot.pilot_name = "VIPER"
 	ai_pilot.skill = 3
@@ -46,12 +68,15 @@ func _ready() -> void:
 	ai_pilot.nerve = 0.1
 	ai_ship.pilot = ai_pilot
 
+	_ships = [player_ship, wing_ship, ai_ship]
+
 	selection_panel.setup(player_ship, ghost_ship)
+	selection_panel.setup_wingman(wing_ship)
 	selection_panel.maneuver_confirmed.connect(_on_maneuver_confirmed)
 
-	$HUD.setup_ships(player_ship, ai_ship)
+	$HUD.setup_ships(_ships)
 
-	RoundManager.register_ships([player_ship, ai_ship])
+	RoundManager.register_ships(_ships)
 	RoundManager.planning_phase_started.connect(_on_planning_started)
 	RoundManager.resolution_phase_started.connect(_on_resolution_started)
 	RoundManager.game_ended.connect(func(_m, _c): _game_over = true)
@@ -61,8 +86,10 @@ func _ready() -> void:
 func _on_planning_started() -> void:
 	selection_panel.visible = true
 	selection_panel.reset()
-	ai_ship.selected_maneuver = ai_controller.select_maneuver(ai_ship, player_ship)
-	ai_ship.selected_action = ai_controller.select_action(ai_ship, player_ship)
+	wing_ship.selected_maneuver = ai_controller.select_maneuver(wing_ship, _ships)
+	wing_ship.selected_action = ai_controller.select_action(wing_ship, _ships)
+	ai_ship.selected_maneuver = ai_controller.select_maneuver(ai_ship, _ships)
+	ai_ship.selected_action = ai_controller.select_action(ai_ship, _ships)
 	if player_ship.is_ionized():
 		selection_panel.force_ion_confirm()
 
