@@ -5,6 +5,10 @@ const BASE_SPEED_UNIT: float = 80.0
 const ARENA_WIDTH: float = 1600.0
 const ARENA_HEIGHT: float = 900.0
 
+const MAX_RANGE: float = 500.0
+const RANGE_CLOSE: float = 167.0
+const RANGE_MEDIUM: float = 333.0
+
 const BANK_LATERAL: float = 0.4
 const BANK_FORWARD: float = 0.9
 const TURN_LATERAL: float = 0.7
@@ -83,3 +87,17 @@ func generate_arc_points(ship_pos: Vector2, ship_rot: float, maneuver: Maneuver,
 
 func is_out_of_bounds(pos: Vector2) -> bool:
 	return pos.x < 0.0 or pos.x > ARENA_WIDTH or pos.y < 0.0 or pos.y > ARENA_HEIGHT
+
+
+func is_in_firing_arc(attacker: Ship, target: Ship) -> bool:
+	var to_target: Vector2 = target.global_position - attacker.global_position
+	if to_target.length() > MAX_RANGE:
+		return false
+	var facing: Vector2 = Vector2(0.0, -1.0).rotated(attacker.rotation)
+	return facing.dot(to_target.normalized()) > cos(deg_to_rad(45.0))
+
+
+func is_in_rear_arc(attacker: Ship, target: Ship) -> bool:
+	var to_attacker: Vector2 = (attacker.global_position - target.global_position).normalized()
+	var target_back: Vector2 = Vector2(0.0, 1.0).rotated(target.rotation)
+	return target_back.dot(to_attacker) > cos(deg_to_rad(45.0))
