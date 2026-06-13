@@ -1,5 +1,7 @@
 extends Node
 
+const Weapon := preload("res://scripts/Weapon.gd")
+
 const BASE_HIT_CHANCE: float = 0.625
 const BASE_EVADE_CHANCE: float = 0.375
 const SHOT_ANIM_DURATION: float = 0.15
