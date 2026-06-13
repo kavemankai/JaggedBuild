@@ -21,10 +21,10 @@ text = ""
 [node name="HealthBars" type="VBoxContainer" parent="."]
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -380.0
+offset_left = -420.0
 offset_top = 16.0
 offset_right = -16.0
-offset_bottom = 106.0
+offset_bottom = 120.0
 
 [node name="PlayerRow" type="HBoxContainer" parent="HealthBars"]
 
@@ -59,6 +59,11 @@ custom_minimum_size = Vector2(28, 0)
 text = ""
 modulate = Color(1.0, 0.3, 0.3, 1.0)
 
+[node name="PlayerWeapon" type="Label" parent="HealthBars/PlayerRow"]
+custom_minimum_size = Vector2(110, 0)
+text = ""
+modulate = Color(0.7, 0.7, 0.9, 1.0)
+
 [node name="AIRow" type="HBoxContainer" parent="HealthBars"]
 
 [node name="AITag" type="Label" parent="HealthBars/AIRow"]
@@ -91,6 +96,11 @@ modulate = Color(0.95, 0.85, 0.2, 1.0)
 custom_minimum_size = Vector2(28, 0)
 text = ""
 modulate = Color(1.0, 0.3, 0.3, 1.0)
+
+[node name="AIWeapon" type="Label" parent="HealthBars/AIRow"]
+custom_minimum_size = Vector2(110, 0)
+text = ""
+modulate = Color(0.7, 0.7, 0.9, 1.0)
 
 [node name="Result" type="Label" parent="."]
 anchor_left = 0.0

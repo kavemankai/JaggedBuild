@@ -17,6 +17,16 @@ func _ready() -> void:
 	ai_ship.shields = 3
 	ai_ship.hull = 2
 
+	var heavy := Weapon.new()
+	heavy.weapon_type = Weapon.Type.HEAVY
+	heavy.display_name = "Heavy Cannon"
+	player_ship.weapon = heavy
+
+	var burst := Weapon.new()
+	burst.weapon_type = Weapon.Type.BURST
+	burst.display_name = "Burst Fire"
+	ai_ship.weapon = burst
+
 	selection_panel.setup(player_ship, ghost_ship)
 	selection_panel.maneuver_confirmed.connect(_on_maneuver_confirmed)
 

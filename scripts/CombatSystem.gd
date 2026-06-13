@@ -2,7 +2,6 @@ extends Node
 
 const BASE_HIT_CHANCE: float = 0.625
 const BASE_EVADE_CHANCE: float = 0.375
-const HIT_DAMAGE: int = 1
 const SHOT_ANIM_DURATION: float = 0.15
 const FOCUS_HIT_BONUS: float = 0.15
 const EVADE_TOKEN_REDUCTION: float = 0.15
@@ -10,9 +9,13 @@ const FOCUS_EVADE_BONUS: float = 0.10
 const HIT_CHANCE_MIN: float = 0.05
 const HIT_CHANCE_MAX: float = 0.95
 
+const BURST_ATK_RATIO: float = 0.6
+const HEAVY_DAMAGE: int = 3
+const HEAVY_COOLDOWN_TURNS: int = 2
 
-func calculate_hit_chance(attacker: Ship, defender: Ship) -> float:
-	var eff_atk: int = attacker.attack
+
+func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1) -> float:
+	var eff_atk: int = atk_override if atk_override >= 0 else attacker.attack
 	var eff_def: int = defender.defence
 
 	var dist: float = attacker.global_position.distance_to(defender.global_position)
@@ -34,7 +37,6 @@ func calculate_hit_chance(attacker: Ship, defender: Ship) -> float:
 	if attacker.focus_token:
 		final_chance += FOCUS_HIT_BONUS
 	if attacker.target_lock == defender:
-		# Reroll on miss: 1 - (1-p)^2
 		final_chance = 1.0 - pow(1.0 - final_chance, 2.0)
 	if defender.evade_token:
 		final_chance -= EVADE_TOKEN_REDUCTION
@@ -60,6 +62,46 @@ func apply_damage(ship: Ship, amount: int) -> void:
 		ship.destroy_ship()
 
 
+# Returns Array of {chance, damage, hit} dicts. hit is false until resolved.
+func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
+	if not in_arc:
+		return []
+	var wtype: Weapon.Type = Weapon.Type.CANNONS
+	if attacker.weapon != null:
+		wtype = attacker.weapon.weapon_type
+	match wtype:
+		Weapon.Type.BURST:
+			var burst_atk: int = maxi(1, floori(float(attacker.attack) * BURST_ATK_RATIO))
+			var chance: float = calculate_hit_chance(attacker, defender, burst_atk)
+			return [
+				{"chance": chance, "damage": 1, "hit": false},
+				{"chance": chance, "damage": 1, "hit": false},
+			]
+		Weapon.Type.HEAVY:
+			if attacker.heavy_cooldown > 0:
+				return []
+			return [{"chance": calculate_hit_chance(attacker, defender), "damage": HEAVY_DAMAGE, "hit": false}]
+		_:  # CANNONS default
+			return [{"chance": calculate_hit_chance(attacker, defender), "damage": 1, "hit": false}]
+
+
+func _display_chance(shots: Array) -> float:
+	if shots.is_empty():
+		return 0.0
+	var p: float = shots[0].chance
+	if shots.size() == 1:
+		return p
+	# P(at least 1 hit across n shots)
+	return 1.0 - pow(1.0 - p, float(shots.size()))
+
+
+func _combat_status(ship: Ship, in_arc: bool, shots: Array) -> String:
+	if not in_arc or not shots.is_empty():
+		return ""
+	# In arc but no shots — must be heavy on cooldown
+	return "RELOADING [%d]" % ship.heavy_cooldown
+
+
 func run_combat(ships: Array) -> void:
 	var alive: Array = ships.filter(func(s: Ship): return not s.is_destroyed)
 	if alive.size() < 2:
@@ -68,42 +110,59 @@ func run_combat(ships: Array) -> void:
 	var ship_a: Ship = alive[0]
 	var ship_b: Ship = alive[1]
 
-	var a_in_arc := ManeuverSystem.is_in_firing_arc(ship_a, ship_b)
-	var b_in_arc := ManeuverSystem.is_in_firing_arc(ship_b, ship_a)
-	var a_chance := calculate_hit_chance(ship_a, ship_b) if a_in_arc else 0.0
-	var b_chance := calculate_hit_chance(ship_b, ship_a) if b_in_arc else 0.0
+	# Tick heavy weapon cooldowns
+	if ship_a.heavy_cooldown > 0:
+		ship_a.heavy_cooldown -= 1
+	if ship_b.heavy_cooldown > 0:
+		ship_b.heavy_cooldown -= 1
+
+	var a_in_arc: bool = ManeuverSystem.is_in_firing_arc(ship_a, ship_b)
+	var b_in_arc: bool = ManeuverSystem.is_in_firing_arc(ship_b, ship_a)
 	var a_used_lock: bool = a_in_arc and ship_a.target_lock == ship_b
 	var b_used_lock: bool = b_in_arc and ship_b.target_lock == ship_a
 
-	ship_a.show_combat_ui(a_in_arc, a_chance)
-	ship_b.show_combat_ui(b_in_arc, b_chance)
+	var a_shots: Array = _build_shots(ship_a, ship_b, a_in_arc)
+	var b_shots: Array = _build_shots(ship_b, ship_a, b_in_arc)
+
+	ship_a.show_combat_ui(a_in_arc, _display_chance(a_shots), _combat_status(ship_a, a_in_arc, a_shots))
+	ship_b.show_combat_ui(b_in_arc, _display_chance(b_shots), _combat_status(ship_b, b_in_arc, b_shots))
 
 	await get_tree().create_timer(1.2).timeout
 
-	# Store both results before applying either
-	var a_hits := resolve_shot(a_chance) if a_in_arc else false
-	var b_hits := resolve_shot(b_chance) if b_in_arc else false
+	# Resolve all shots — store results before applying any
+	for shot in a_shots:
+		shot.hit = resolve_shot(shot.chance)
+	for shot in b_shots:
+		shot.hit = resolve_shot(shot.chance)
 
-	# Draw shots simultaneously (fire and forget coroutines)
-	if a_in_arc:
-		_draw_shot(ship_a.global_position, ship_b.global_position, ship_a.accent_color, a_hits)
-	if b_in_arc:
-		_draw_shot(ship_b.global_position, ship_a.global_position, ship_b.accent_color, b_hits)
+	# Draw shots simultaneously
+	for shot in a_shots:
+		_draw_shot(ship_a.global_position, ship_b.global_position, ship_a.accent_color, shot.hit)
+	for shot in b_shots:
+		_draw_shot(ship_b.global_position, ship_a.global_position, ship_b.accent_color, shot.hit)
 
 	await get_tree().create_timer(SHOT_ANIM_DURATION + 0.1).timeout
 
-	# Apply both simultaneously
-	if a_hits:
-		apply_damage(ship_b, HIT_DAMAGE)
-	if b_hits:
-		apply_damage(ship_a, HIT_DAMAGE)
+	# Apply all damage simultaneously
+	for shot in a_shots:
+		if shot.hit:
+			apply_damage(ship_b, shot.damage)
+	for shot in b_shots:
+		if shot.hit:
+			apply_damage(ship_a, shot.damage)
+
+	# Set heavy cooldown for weapons that just fired
+	if not a_shots.is_empty() and ship_a.weapon != null and ship_a.weapon.weapon_type == Weapon.Type.HEAVY:
+		ship_a.heavy_cooldown = HEAVY_COOLDOWN_TURNS
+	if not b_shots.is_empty() and ship_b.weapon != null and ship_b.weapon.weapon_type == Weapon.Type.HEAVY:
+		ship_b.heavy_cooldown = HEAVY_COOLDOWN_TURNS
 
 	ship_a.hide_combat_ui()
 	ship_b.hide_combat_ui()
 
 	await get_tree().create_timer(0.4).timeout
 
-	# Consume per-round tokens; target lock consumed only if spent this combat
+	# Consume per-round tokens
 	ship_a.focus_token = false
 	ship_b.focus_token = false
 	ship_a.evade_token = false

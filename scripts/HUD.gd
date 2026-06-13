@@ -6,10 +6,12 @@ extends CanvasLayer
 @onready var _p_hull: ProgressBar = $HealthBars/PlayerRow/PlayerHull
 @onready var _p_tokens: Label = $HealthBars/PlayerRow/PlayerTokens
 @onready var _p_stress: Label = $HealthBars/PlayerRow/PlayerStress
+@onready var _p_weapon: Label = $HealthBars/PlayerRow/PlayerWeapon
 @onready var _ai_shields: ProgressBar = $HealthBars/AIRow/AIShields
 @onready var _ai_hull: ProgressBar = $HealthBars/AIRow/AIHull
 @onready var _ai_tokens: Label = $HealthBars/AIRow/AITokens
 @onready var _ai_stress: Label = $HealthBars/AIRow/AIStress
+@onready var _ai_weapon: Label = $HealthBars/AIRow/AIWeapon
 @onready var _result: Label = $Result
 
 var _player_ship: Ship = null
@@ -59,6 +61,8 @@ func _process(_delta: float) -> void:
 	_ai_tokens.text = _token_text(_ai_ship)
 	_p_stress.text = "S×%d" % _player_ship.stress if _player_ship.stress > 0 else ""
 	_ai_stress.text = "S×%d" % _ai_ship.stress if _ai_ship.stress > 0 else ""
+	_p_weapon.text = _weapon_text(_player_ship)
+	_ai_weapon.text = _weapon_text(_ai_ship)
 
 	var p_low := _player_ship.hull <= _p_hull.max_value * 0.5
 	if p_low != _p_hull_low:
@@ -75,6 +79,23 @@ func _on_game_ended(message: String, color: Color) -> void:
 	_result.text = message + "\n\nPRESS ANY KEY"
 	_result.modulate = color
 	_result.visible = true
+
+
+func _weapon_text(ship: Ship) -> String:
+	if ship.weapon == null:
+		return "Cannons"
+	match ship.weapon.weapon_type:
+		Weapon.Type.BURST:
+			return "Burst ×2"
+		Weapon.Type.HEAVY:
+			if ship.heavy_cooldown > 0:
+				return "Heavy [cd:%d]" % ship.heavy_cooldown
+			return "Heavy READY"
+		Weapon.Type.MISSILES:
+			return "Missiles"
+		Weapon.Type.ION:
+			return "Ion"
+	return "Cannons"
 
 
 func _token_text(ship: Ship) -> String:

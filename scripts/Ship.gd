@@ -17,8 +17,10 @@ extends Node2D
 @export var defence: int = 2
 @export var shields: int = 2
 @export var hull: int = 3
+@export var weapon: Weapon = null
 
 var selected_maneuver: Maneuver = null
+var heavy_cooldown: int = 0
 var is_destroyed: bool = false
 var was_bumped: bool = false
 var stress: int = 0
@@ -52,12 +54,15 @@ func _build_arc_polygon() -> void:
 	_firing_arc.visible = false
 
 
-func show_combat_ui(in_arc: bool, hit_chance: float) -> void:
+func show_combat_ui(in_arc: bool, hit_chance: float, status: String = "") -> void:
 	_firing_arc.visible = true
 	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b,
 								0.28 if in_arc else 0.08)
 	_hit_label.visible = true
-	if in_arc:
+	if status != "":
+		_hit_label.add_theme_color_override("font_color", Color(0.85, 0.65, 0.2, 1.0))
+		_hit_label.text = status
+	elif in_arc:
 		_hit_label.add_theme_color_override("font_color", accent_color)
 		_hit_label.text = "%d%% HIT" % int(hit_chance * 100.0)
 	else:
