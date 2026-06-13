@@ -4,8 +4,10 @@ extends CanvasLayer
 @onready var _phase_label: Label = $Info/Phase
 @onready var _p_shields: ProgressBar = $HealthBars/PlayerRow/PlayerShields
 @onready var _p_hull: ProgressBar = $HealthBars/PlayerRow/PlayerHull
+@onready var _p_tokens: Label = $HealthBars/PlayerRow/PlayerTokens
 @onready var _ai_shields: ProgressBar = $HealthBars/AIRow/AIShields
 @onready var _ai_hull: ProgressBar = $HealthBars/AIRow/AIHull
+@onready var _ai_tokens: Label = $HealthBars/AIRow/AITokens
 @onready var _result: Label = $Result
 
 var _player_ship: Ship = null
@@ -25,6 +27,8 @@ func _ready() -> void:
 		_phase_label.text = "PLANNING")
 	RoundManager.resolution_phase_started.connect(func():
 		_phase_label.text = "RESOLVING")
+	RoundManager.action_phase_started.connect(func():
+		_phase_label.text = "ACTIONS")
 	RoundManager.combat_phase_started.connect(func():
 		_phase_label.text = "COMBAT")
 	RoundManager.evaluation_phase_started.connect(func():
@@ -49,6 +53,9 @@ func _process(_delta: float) -> void:
 	_ai_shields.value = _ai_ship.shields
 	_ai_hull.value = _ai_ship.hull
 
+	_p_tokens.text = _token_text(_player_ship)
+	_ai_tokens.text = _token_text(_ai_ship)
+
 	var p_low := _player_ship.hull <= _p_hull.max_value * 0.5
 	if p_low != _p_hull_low:
 		_p_hull_low = p_low
@@ -64,6 +71,17 @@ func _on_game_ended(message: String, color: Color) -> void:
 	_result.text = message
 	_result.modulate = color
 	_result.visible = true
+
+
+func _token_text(ship: Ship) -> String:
+	var parts: Array = []
+	if ship.focus_token:
+		parts.append("F")
+	if ship.evade_token:
+		parts.append("E")
+	if ship.target_lock != null:
+		parts.append("TL")
+	return " ".join(parts)
 
 
 func _style_bar(bar: ProgressBar, color: Color) -> void:

@@ -30,6 +30,7 @@ func _on_planning_started() -> void:
 	selection_panel.visible = true
 	selection_panel.reset()
 	ai_ship.selected_maneuver = ai_controller.select_maneuver(ai_ship, player_ship)
+	ai_ship.selected_action = ai_controller.select_action(ai_ship, player_ship)
 
 
 func _on_resolution_started() -> void:

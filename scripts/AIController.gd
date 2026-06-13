@@ -24,6 +24,12 @@ func select_maneuver(ai_ship: Ship, player_ship: Ship) -> Maneuver:
 	return best_maneuver
 
 
+func select_action(ai_ship: Ship, player_ship: Ship) -> String:
+	if ManeuverSystem.is_in_firing_arc(ai_ship, player_ship):
+		return "TARGET_LOCK" if ai_ship.target_lock == null else "FOCUS"
+	return "FOCUS"
+
+
 func _score_state(end_state: Dictionary, player_ship: Ship) -> float:
 	var end_pos: Vector2 = end_state["position"]
 	var end_rot: float = end_state["rotation"]

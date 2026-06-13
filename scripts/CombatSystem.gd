@@ -4,6 +4,11 @@ const BASE_HIT_CHANCE: float = 0.625
 const BASE_EVADE_CHANCE: float = 0.375
 const HIT_DAMAGE: int = 1
 const SHOT_ANIM_DURATION: float = 0.15
+const FOCUS_HIT_BONUS: float = 0.15
+const EVADE_TOKEN_REDUCTION: float = 0.15
+const FOCUS_EVADE_BONUS: float = 0.10
+const HIT_CHANCE_MIN: float = 0.05
+const HIT_CHANCE_MAX: float = 0.95
 
 
 func calculate_hit_chance(attacker: Ship, defender: Ship) -> float:
@@ -24,7 +29,19 @@ func calculate_hit_chance(attacker: Ship, defender: Ship) -> float:
 
 	var p_hit: float = 1.0 - pow(1.0 - BASE_HIT_CHANCE, float(eff_atk))
 	var p_survive: float = pow(1.0 - BASE_EVADE_CHANCE, float(eff_def))
-	return p_hit * p_survive
+	var final_chance: float = p_hit * p_survive
+
+	if attacker.focus_token:
+		final_chance += FOCUS_HIT_BONUS
+	if attacker.target_lock == defender:
+		# Reroll on miss: 1 - (1-p)^2
+		final_chance = 1.0 - pow(1.0 - final_chance, 2.0)
+	if defender.evade_token:
+		final_chance -= EVADE_TOKEN_REDUCTION
+	if defender.focus_token:
+		final_chance -= FOCUS_EVADE_BONUS
+
+	return clampf(final_chance, HIT_CHANCE_MIN, HIT_CHANCE_MAX)
 
 
 func resolve_shot(hit_chance: float) -> bool:
@@ -54,6 +71,8 @@ func run_combat(ships: Array) -> void:
 	var b_in_arc := ManeuverSystem.is_in_firing_arc(ship_b, ship_a)
 	var a_chance := calculate_hit_chance(ship_a, ship_b) if a_in_arc else 0.0
 	var b_chance := calculate_hit_chance(ship_b, ship_a) if b_in_arc else 0.0
+	var a_used_lock: bool = a_in_arc and ship_a.target_lock == ship_b
+	var b_used_lock: bool = b_in_arc and ship_b.target_lock == ship_a
 
 	ship_a.show_combat_ui(a_in_arc, a_chance)
 	ship_b.show_combat_ui(b_in_arc, b_chance)
@@ -82,6 +101,20 @@ func run_combat(ships: Array) -> void:
 	ship_b.hide_combat_ui()
 
 	await get_tree().create_timer(0.4).timeout
+
+	# Consume per-round tokens; target lock consumed only if spent this combat
+	ship_a.focus_token = false
+	ship_b.focus_token = false
+	ship_a.evade_token = false
+	ship_b.evade_token = false
+	if a_used_lock:
+		ship_a.target_lock = null
+	if b_used_lock:
+		ship_b.target_lock = null
+	if ship_a.target_lock != null and ship_a.target_lock.is_destroyed:
+		ship_a.target_lock = null
+	if ship_b.target_lock != null and ship_b.target_lock.is_destroyed:
+		ship_b.target_lock = null
 
 
 func _draw_shot(from: Vector2, to: Vector2, color: Color, is_hit: bool) -> void:

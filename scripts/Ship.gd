@@ -18,6 +18,10 @@ extends Node2D
 var selected_maneuver: Maneuver = null
 var is_destroyed: bool = false
 var was_bumped: bool = false
+var focus_token: bool = false
+var evade_token: bool = false
+var target_lock: Ship = null
+var selected_action: String = ""
 var _arc_pts: Array = []
 
 @onready var _body: Sprite2D = $Body

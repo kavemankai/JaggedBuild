@@ -1,9 +1,10 @@
 extends Node
 
-enum Phase { PLANNING, RESOLUTION, COMBAT, EVALUATION }
+enum Phase { PLANNING, RESOLUTION, ACTION, COMBAT, EVALUATION }
 
 signal planning_phase_started
 signal resolution_phase_started
+signal action_phase_started
 signal combat_phase_started
 signal evaluation_phase_started
 signal game_ended(message: String, color: Color)
@@ -40,6 +41,13 @@ func resolve_maneuvers() -> void:
 			if CollisionHandler.ships_overlap(ship, other):
 				CollisionHandler.resolve_bump(ship, other)
 
+	_run_actions()
+
+
+func _run_actions() -> void:
+	current_phase = Phase.ACTION
+	action_phase_started.emit()
+	await ActionSystem.execute_actions(ships)
 	_run_combat()
 
 

@@ -26,6 +26,7 @@ ManeuverSystem="*res://scripts/ManeuverSystem.gd"
 RoundManager="*res://scripts/RoundManager.gd"
 CollisionHandler="*res://scripts/CollisionHandler.gd"
 CombatSystem="*res://scripts/CombatSystem.gd"
+ActionSystem="*res://scripts/ActionSystem.gd"
 
 [display]
 

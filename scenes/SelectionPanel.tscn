@@ -14,7 +14,7 @@ anchor_left = 0.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -210.0
+offset_top = -260.0
 
 [node name="VBox" type="VBoxContainer" parent="Panel"]
 layout_mode = 2
@@ -27,6 +27,10 @@ horizontal_alignment = 1
 [node name="Grid" type="GridContainer" parent="Panel/VBox"]
 layout_mode = 2
 columns = 6
+
+[node name="ActionRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+alignment = 1
 
 [node name="Ready" type="Label" parent="Panel/VBox"]
 layout_mode = 2
