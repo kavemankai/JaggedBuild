@@ -21,29 +21,30 @@ text = ""
 [node name="HealthBars" type="VBoxContainer" parent="."]
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -420.0
+offset_left = -480.0
 offset_top = 16.0
 offset_right = -16.0
 offset_bottom = 120.0
 
 [node name="PlayerRow" type="HBoxContainer" parent="HealthBars"]
 
-[node name="PlayerTag" type="Label" parent="HealthBars/PlayerRow"]
-custom_minimum_size = Vector2(36, 0)
-text = "YOU"
+[node name="PlayerName" type="Label" parent="HealthBars/PlayerRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "ACE [5]"
+modulate = Color(1.0, 0.8, 0.5, 1.0)
 
 [node name="PlayerShields" type="ProgressBar" parent="HealthBars/PlayerRow"]
-custom_minimum_size = Vector2(90, 16)
+custom_minimum_size = Vector2(80, 16)
 size_flags_horizontal = 3
 max_value = 2.0
 value = 2.0
 show_percentage = false
 
 [node name="PlayerGap" type="Label" parent="HealthBars/PlayerRow"]
-text = "  "
+text = " "
 
 [node name="PlayerHull" type="ProgressBar" parent="HealthBars/PlayerRow"]
-custom_minimum_size = Vector2(90, 16)
+custom_minimum_size = Vector2(80, 16)
 size_flags_horizontal = 3
 max_value = 3.0
 value = 3.0
@@ -66,22 +67,23 @@ modulate = Color(0.7, 0.7, 0.9, 1.0)
 
 [node name="AIRow" type="HBoxContainer" parent="HealthBars"]
 
-[node name="AITag" type="Label" parent="HealthBars/AIRow"]
-custom_minimum_size = Vector2(36, 0)
-text = "AI "
+[node name="AIName" type="Label" parent="HealthBars/AIRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "VIPER [3]"
+modulate = Color(0.6, 0.8, 0.6, 1.0)
 
 [node name="AIShields" type="ProgressBar" parent="HealthBars/AIRow"]
-custom_minimum_size = Vector2(90, 16)
+custom_minimum_size = Vector2(80, 16)
 size_flags_horizontal = 3
 max_value = 3.0
 value = 3.0
 show_percentage = false
 
 [node name="AIGap" type="Label" parent="HealthBars/AIRow"]
-text = "  "
+text = " "
 
 [node name="AIHull" type="ProgressBar" parent="HealthBars/AIRow"]
-custom_minimum_size = Vector2(90, 16)
+custom_minimum_size = Vector2(80, 16)
 size_flags_horizontal = 3
 max_value = 2.0
 value = 2.0

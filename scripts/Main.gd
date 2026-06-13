@@ -1,6 +1,7 @@
 extends Node2D
 
 const Weapon := preload("res://scripts/Weapon.gd")
+const Pilot := preload("res://scripts/Pilot.gd")
 
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var ai_ship: Ship = $Ships/AIShip
@@ -29,10 +30,26 @@ func _ready() -> void:
 	burst.display_name = "Burst Fire"
 	ai_ship.weapon = burst
 
+	var player_pilot := Pilot.new()
+	player_pilot.pilot_name = "ACE"
+	player_pilot.skill = 5
+	player_pilot.accuracy = 1.1
+	player_pilot.agility = 1.0
+	player_pilot.nerve = 0.3
+	player_ship.pilot = player_pilot
+
+	var ai_pilot := Pilot.new()
+	ai_pilot.pilot_name = "VIPER"
+	ai_pilot.skill = 3
+	ai_pilot.accuracy = 1.0
+	ai_pilot.agility = 1.1
+	ai_pilot.nerve = 0.1
+	ai_ship.pilot = ai_pilot
+
 	selection_panel.setup(player_ship, ghost_ship)
 	selection_panel.maneuver_confirmed.connect(_on_maneuver_confirmed)
 
-	$HUD.setup_health(player_ship, ai_ship)
+	$HUD.setup_ships(player_ship, ai_ship)
 
 	RoundManager.register_ships([player_ship, ai_ship])
 	RoundManager.planning_phase_started.connect(_on_planning_started)

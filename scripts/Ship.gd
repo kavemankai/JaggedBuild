@@ -1,6 +1,8 @@
 class_name Ship
 extends Node2D
 
+const Pilot := preload("res://scripts/Pilot.gd")
+
 @export var pilot_skill: int = 4
 @export var speed_options: Array = [1, 2, 3, 4]
 @export var bearing_options: Array = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
@@ -18,6 +20,7 @@ extends Node2D
 @export var shields: int = 2
 @export var hull: int = 3
 @export var weapon: Resource = null
+@export var pilot: Resource = null
 
 var selected_maneuver: Maneuver = null
 var heavy_cooldown: int = 0
@@ -74,6 +77,31 @@ func hide_combat_ui() -> void:
 	_firing_arc.visible = false
 	_hit_label.visible = false
 	_hit_label.add_theme_color_override("font_color", accent_color)
+
+
+func get_skill() -> int:
+	var p: Pilot = pilot as Pilot
+	return p.skill if p != null else pilot_skill
+
+
+func get_accuracy() -> float:
+	var p: Pilot = pilot as Pilot
+	return p.accuracy if p != null else 1.0
+
+
+func get_agility() -> float:
+	var p: Pilot = pilot as Pilot
+	return p.agility if p != null else 1.0
+
+
+func get_nerve() -> float:
+	var p: Pilot = pilot as Pilot
+	return p.nerve if p != null else 0.0
+
+
+func get_pilot_name() -> String:
+	var p: Pilot = pilot as Pilot
+	return p.pilot_name if p != null else "Unknown"
 
 
 func get_maneuver_color(bearing: String) -> String:

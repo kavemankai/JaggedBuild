@@ -29,19 +29,21 @@ func resolve_maneuvers() -> void:
 	resolution_phase_started.emit()
 
 	var resolution_order: Array = ships.duplicate()
-	resolution_order.sort_custom(func(a, b): return a.pilot_skill < b.pilot_skill)
+	resolution_order.sort_custom(func(a, b): return (a as Ship).get_skill() < (b as Ship).get_skill())
 
 	for ship in resolution_order:
 		if ship.is_destroyed:
 			continue
 		var bearing: String = ship.selected_maneuver.bearing if ship.selected_maneuver else ""
 		await ship.execute_maneuver()
-		var move_color: String = (ship as Ship).get_maneuver_color(bearing)
+		var s: Ship = ship as Ship
+		var move_color: String = s.get_maneuver_color(bearing)
 		if move_color == "RED":
-			(ship as Ship).stress += 1
-			(ship as Ship).pulse_stress()
-		elif move_color == "GREEN" and (ship as Ship).stress > 0:
-			(ship as Ship).stress -= 1
+			if randf() >= s.get_nerve():
+				s.stress += 1
+				s.pulse_stress()
+		elif move_color == "GREEN" and s.stress > 0:
+			s.stress -= 1
 		for other in ships:
 			if other == ship or other.is_destroyed:
 				continue

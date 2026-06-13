@@ -4,11 +4,13 @@ const Weapon := preload("res://scripts/Weapon.gd")
 
 @onready var _round_label: Label = $Info/Round
 @onready var _phase_label: Label = $Info/Phase
+@onready var _p_name: Label = $HealthBars/PlayerRow/PlayerName
 @onready var _p_shields: ProgressBar = $HealthBars/PlayerRow/PlayerShields
 @onready var _p_hull: ProgressBar = $HealthBars/PlayerRow/PlayerHull
 @onready var _p_tokens: Label = $HealthBars/PlayerRow/PlayerTokens
 @onready var _p_stress: Label = $HealthBars/PlayerRow/PlayerStress
 @onready var _p_weapon: Label = $HealthBars/PlayerRow/PlayerWeapon
+@onready var _ai_name: Label = $HealthBars/AIRow/AIName
 @onready var _ai_shields: ProgressBar = $HealthBars/AIRow/AIShields
 @onready var _ai_hull: ProgressBar = $HealthBars/AIRow/AIHull
 @onready var _ai_tokens: Label = $HealthBars/AIRow/AITokens
@@ -42,13 +44,15 @@ func _ready() -> void:
 	RoundManager.game_ended.connect(_on_game_ended)
 
 
-func setup_health(player_ship: Ship, ai_ship: Ship) -> void:
+func setup_ships(player_ship: Ship, ai_ship: Ship) -> void:
 	_player_ship = player_ship
 	_ai_ship = ai_ship
 	_p_shields.max_value = player_ship.shields
 	_p_hull.max_value = player_ship.hull
 	_ai_shields.max_value = ai_ship.shields
 	_ai_hull.max_value = ai_ship.hull
+	_p_name.text = player_ship.get_pilot_name() + " [%d]" % player_ship.get_skill()
+	_ai_name.text = ai_ship.get_pilot_name() + " [%d]" % ai_ship.get_skill()
 
 
 func _process(_delta: float) -> void:

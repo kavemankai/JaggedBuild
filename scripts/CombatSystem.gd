@@ -2,6 +2,9 @@ extends Node
 
 const Weapon := preload("res://scripts/Weapon.gd")
 
+const SKILL_MOD_PER_POINT: float = 0.05
+const SKILL_MOD_CAP: float = 0.20
+
 const BASE_HIT_CHANCE: float = 0.625
 const BASE_EVADE_CHANCE: float = 0.375
 const SHOT_ANIM_DURATION: float = 0.15
@@ -17,15 +20,19 @@ const HEAVY_COOLDOWN_TURNS: int = 2
 
 
 func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1) -> float:
-	var eff_atk: int = atk_override if atk_override >= 0 else attacker.attack
-	var eff_def: int = defender.defence
+	# Base attack/defence scaled by pilot accuracy/agility
+	var base_atk: int = atk_override if atk_override >= 0 else attacker.attack
+	var eff_atk: int = clampi(roundi(float(base_atk) * attacker.get_accuracy()), 0, 6)
+	var eff_def: int = clampi(roundi(float(defender.defence) * defender.get_agility()), 0, 6)
 
+	# Range bands
 	var dist: float = attacker.global_position.distance_to(defender.global_position)
 	if dist < ManeuverSystem.RANGE_CLOSE:
 		eff_atk += 1
 	elif dist > ManeuverSystem.RANGE_MEDIUM:
 		eff_def += 1
 
+	# Rear arc
 	if ManeuverSystem.is_in_rear_arc(attacker, defender):
 		eff_def = max(0, eff_def - 1)
 
@@ -36,6 +43,12 @@ func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1
 	var p_survive: float = pow(1.0 - BASE_EVADE_CHANCE, float(eff_def))
 	var final_chance: float = p_hit * p_survive
 
+	# Pilot skill delta modifier
+	var skill_delta: int = attacker.get_skill() - defender.get_skill()
+	var skill_mod: float = clampf(float(skill_delta) * SKILL_MOD_PER_POINT, -SKILL_MOD_CAP, SKILL_MOD_CAP)
+	final_chance += skill_mod
+
+	# Token modifiers
 	if attacker.focus_token:
 		final_chance += FOCUS_HIT_BONUS
 	if attacker.target_lock == defender:
