@@ -67,6 +67,14 @@ func hide_combat_ui() -> void:
 	_hit_label.add_theme_color_override("font_color", accent_color)
 
 
+func destroy_ship() -> void:
+	_firing_arc.visible = false
+	_hit_label.visible = false
+	var tween := create_tween()
+	tween.tween_property(_body, "modulate", Color(1.0, 0.4, 0.0, 0.0), 0.35)
+	tween.parallel().tween_property(_body, "scale", Vector2(6.0, 6.0), 0.35)
+
+
 func flash_shield() -> void:
 	var tween := create_tween()
 	tween.tween_property(_body, "modulate", Color(0.5, 0.8, 1.0, 1.0), 0.05)

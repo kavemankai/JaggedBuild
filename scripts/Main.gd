@@ -6,6 +6,8 @@ extends Node2D
 @onready var selection_panel: Control = $UI/SelectionPanel
 @onready var ai_controller: Node = $AIController
 
+var _game_over: bool = false
+
 
 func _ready() -> void:
 	ai_ship.speed_options = [1, 2, 3]
@@ -23,6 +25,7 @@ func _ready() -> void:
 	RoundManager.register_ships([player_ship, ai_ship])
 	RoundManager.planning_phase_started.connect(_on_planning_started)
 	RoundManager.resolution_phase_started.connect(_on_resolution_started)
+	RoundManager.game_ended.connect(func(_m, _c): _game_over = true)
 	RoundManager.begin_round()
 
 
@@ -39,3 +42,8 @@ func _on_resolution_started() -> void:
 
 func _on_maneuver_confirmed(_maneuver: Maneuver) -> void:
 	RoundManager.resolve_maneuvers()
+
+
+func _input(event: InputEvent) -> void:
+	if _game_over and event is InputEventKey and event.pressed and not event.echo:
+		get_tree().reload_current_scene()

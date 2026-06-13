@@ -68,7 +68,7 @@ func _process(_delta: float) -> void:
 
 
 func _on_game_ended(message: String, color: Color) -> void:
-	_result.text = message
+	_result.text = message + "\n\nPRESS ANY KEY"
 	_result.modulate = color
 	_result.visible = true
 

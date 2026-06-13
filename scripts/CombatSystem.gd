@@ -57,6 +57,7 @@ func apply_damage(ship: Ship, amount: int) -> void:
 		ship.flash_hull()
 	if ship.hull <= 0:
 		ship.is_destroyed = true
+		ship.destroy_ship()
 
 
 func run_combat(ships: Array) -> void:
