@@ -1,3 +1,4 @@
+class_name SelectionPanel
 extends Control
 
 signal maneuver_confirmed(maneuver: Maneuver)

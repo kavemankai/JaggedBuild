@@ -2,8 +2,8 @@ extends Node2D
 
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var ai_ship: Ship = $Ships/AIShip
-@onready var ghost_ship: Node2D = $GhostShip
-@onready var selection_panel: Control = $UI/SelectionPanel
+@onready var ghost_ship: GhostShip = $GhostShip
+@onready var selection_panel: SelectionPanel = $UI/SelectionPanel
 @onready var ai_controller: Node = $AIController
 
 var _game_over: bool = false

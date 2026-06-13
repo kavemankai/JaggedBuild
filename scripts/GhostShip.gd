@@ -1,3 +1,4 @@
+class_name GhostShip
 extends Node2D
 
 @onready var ghost_body: Sprite2D = $GhostBody
