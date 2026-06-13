@@ -10,6 +10,9 @@ extends Node2D
 
 @export var ship_texture: Texture2D
 
+@export var red_bearings: Array[String] = ["TURN_LEFT", "TURN_RIGHT", "K_TURN"]
+@export var green_bearings: Array[String] = ["STRAIGHT"]
+
 @export var attack: int = 3
 @export var defence: int = 2
 @export var shields: int = 2
@@ -66,6 +69,14 @@ func hide_combat_ui() -> void:
 	_firing_arc.visible = false
 	_hit_label.visible = false
 	_hit_label.add_theme_color_override("font_color", accent_color)
+
+
+func get_maneuver_color(bearing: String) -> String:
+	if bearing in red_bearings:
+		return "RED"
+	if bearing in green_bearings:
+		return "GREEN"
+	return "WHITE"
 
 
 func pulse_stress() -> void:

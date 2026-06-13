@@ -5,18 +5,18 @@ extends Node2D
 @onready var _stress_label: Label = $GhostBody/StressLabel
 
 
-func update_preview(ship_pos: Vector2, ship_rot: float, maneuver: Maneuver, accent: Color = Color(0.2, 0.5, 1.0, 1.0)) -> void:
+func update_preview(ship: Ship, maneuver: Maneuver) -> void:
 	if maneuver == null:
 		visible = false
 		return
 
 	visible = true
 
-	var end_state: Dictionary = ManeuverSystem.compute_end_state(ship_pos, ship_rot, maneuver)
+	var end_state: Dictionary = ManeuverSystem.compute_end_state(ship.global_position, ship.rotation, maneuver)
 	ghost_body.global_position = end_state["position"]
 	ghost_body.rotation = end_state["rotation"] + deg_to_rad(-90.0)
 
-	var move_color: String = ManeuverSystem.get_maneuver_color(maneuver.bearing)
+	var move_color: String = ship.get_maneuver_color(maneuver.bearing)
 	match move_color:
 		"RED":
 			ghost_body.modulate = Color(1.0, 0.45, 0.45, 0.5)
@@ -30,9 +30,9 @@ func update_preview(ship_pos: Vector2, ship_rot: float, maneuver: Maneuver, acce
 			ghost_body.modulate = Color(1.0, 1.0, 1.0, 0.4)
 			_stress_label.text = ""
 
-	arc_line.default_color = Color(accent.r, accent.g, accent.b, 0.6)
+	arc_line.default_color = Color(ship.accent_color.r, ship.accent_color.g, ship.accent_color.b, 0.6)
 
-	var world_pts: Array = ManeuverSystem.generate_arc_points(ship_pos, ship_rot, maneuver)
+	var world_pts: Array = ManeuverSystem.generate_arc_points(ship.global_position, ship.rotation, maneuver)
 	var local_pts := PackedVector2Array()
 	for pt: Vector2 in world_pts:
 		local_pts.append(to_local(pt))

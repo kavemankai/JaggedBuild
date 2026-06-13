@@ -36,7 +36,7 @@ func resolve_maneuvers() -> void:
 			continue
 		var bearing: String = ship.selected_maneuver.bearing if ship.selected_maneuver else ""
 		await ship.execute_maneuver()
-		var move_color: String = ManeuverSystem.get_maneuver_color(bearing)
+		var move_color: String = (ship as Ship).get_maneuver_color(bearing)
 		if move_color == "RED":
 			(ship as Ship).stress += 1
 			(ship as Ship).pulse_stress()

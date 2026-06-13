@@ -59,7 +59,7 @@ func _populate_actions() -> void:
 func _on_hover(maneuver: Maneuver) -> void:
 	if confirmed:
 		return
-	ghost_ship.update_preview(ship.global_position, ship.rotation, maneuver, ship.accent_color)
+	ghost_ship.update_preview(ship, maneuver)
 
 
 func _on_select(maneuver: Maneuver) -> void:
@@ -67,7 +67,7 @@ func _on_select(maneuver: Maneuver) -> void:
 		return
 	confirmed = true
 	ship.selected_maneuver = maneuver
-	ghost_ship.update_preview(ship.global_position, ship.rotation, maneuver, ship.accent_color)
+	ghost_ship.update_preview(ship, maneuver)
 	ready_label.text = "READY"
 	_lock_buttons()
 	maneuver_confirmed.emit(maneuver)
@@ -104,7 +104,7 @@ func reset() -> void:
 	for child in grid.get_children():
 		if child is Button:
 			var bearing: String = child.get_meta("bearing", "")
-			var is_red: bool = ManeuverSystem.get_maneuver_color(bearing) == "RED"
+			var is_red: bool = ship.get_maneuver_color(bearing) == "RED"
 			child.disabled = stressed and is_red
 			child.modulate = Color(1.0, 0.5, 0.5, 0.7) if (stressed and is_red) else Color.WHITE
 	for child in _action_row.get_children():

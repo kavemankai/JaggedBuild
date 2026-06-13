@@ -8,7 +8,7 @@ func select_maneuver(ai_ship: Ship, player_ship: Ship) -> Maneuver:
 	var best_score: float = -INF
 
 	for bearing in ai_ship.bearing_options:
-		if ai_ship.stress > 0 and ManeuverSystem.get_maneuver_color(bearing) == "RED":
+		if ai_ship.stress > 0 and ai_ship.get_maneuver_color(bearing) == "RED":
 			continue
 		for speed in ai_ship.speed_options:
 			var m := Maneuver.new()
