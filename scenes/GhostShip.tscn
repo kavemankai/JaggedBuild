@@ -14,6 +14,14 @@ rotation_degrees = -90.0
 scale = Vector2(3, 3)
 texture_filter = 1
 
+[node name="StressLabel" type="Label" parent="GhostBody"]
+offset_left = -52.0
+offset_top = -48.0
+offset_right = 52.0
+offset_bottom = -30.0
+text = ""
+horizontal_alignment = 1
+
 [node name="ArcLine" type="Line2D" parent="."]
 default_color = Color(1.0, 0.3, 0.2, 0.6)
 width = 2.0
