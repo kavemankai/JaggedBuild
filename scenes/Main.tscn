@@ -1,0 +1,25 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/Ship.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/GhostShip.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/SelectionPanel.tscn" id="4"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1")
+
+[node name="Arena" type="ColorRect" parent="."]
+offset_right = 1600.0
+offset_bottom = 900.0
+color = Color(0.04, 0.04, 0.12, 1.0)
+
+[node name="Ships" type="Node2D" parent="."]
+
+[node name="PlayerShip" parent="Ships" instance=ExtResource("2")]
+position = Vector2(800, 450)
+
+[node name="GhostShip" parent="." instance=ExtResource("3")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="SelectionPanel" parent="UI" instance=ExtResource("4")]
