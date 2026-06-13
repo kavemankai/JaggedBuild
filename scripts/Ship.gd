@@ -36,7 +36,7 @@ func _build_arc_polygon() -> void:
 	pts.append(Vector2.ZERO)
 	for i in range(11):
 		var t := float(i) / 10.0
-		var angle := lerp(deg_to_rad(-45.0), deg_to_rad(45.0), t)
+		var angle: float = lerp(deg_to_rad(-45.0), deg_to_rad(45.0), t)
 		pts.append(Vector2(0.0, -1.0).rotated(angle) * ManeuverSystem.MAX_RANGE)
 	_firing_arc.polygon = pts
 	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.12)

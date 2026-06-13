@@ -60,8 +60,8 @@ func _evaluate() -> void:
 
 	await get_tree().create_timer(0.3).timeout
 
-	var player_dead := ships.size() > 0 and ships[0].is_destroyed
-	var ai_dead := ships.size() > 1 and ships[1].is_destroyed
+	var player_dead: bool = ships.size() > 0 and (ships[0] as Ship).is_destroyed
+	var ai_dead: bool = ships.size() > 1 and (ships[1] as Ship).is_destroyed
 
 	if player_dead and ai_dead:
 		_end_game("MUTUAL DESTRUCTION", Color.WHITE)
