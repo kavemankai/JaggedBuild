@@ -102,10 +102,12 @@ func is_out_of_bounds(pos: Vector2) -> bool:
 
 func is_in_firing_arc(attacker: Ship, target: Ship) -> bool:
 	var to_target: Vector2 = target.global_position - attacker.global_position
-	if to_target.length() > MAX_RANGE:
+	var max_range: float = MAX_RANGE * 1.2 if attacker.is_capital else MAX_RANGE
+	if to_target.length() > max_range:
 		return false
 	var facing: Vector2 = Vector2(0.0, -1.0).rotated(attacker.rotation)
-	return facing.dot(to_target.normalized()) > cos(deg_to_rad(45.0))
+	var half_angle: float = 75.0 if attacker.is_capital else 45.0
+	return facing.dot(to_target.normalized()) > cos(deg_to_rad(half_angle))
 
 
 func is_in_rear_arc(attacker: Ship, target: Ship) -> bool:

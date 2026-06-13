@@ -77,13 +77,20 @@ func _deploy_enemies(mission: Dictionary) -> Array:
 	var specs: Array = mission.get("enemies", [])
 	var enemies: Array = []
 	for i in range(specs.size()):
+		var spec: Dictionary = specs[i]
 		var ship: Ship = SHIP_SCENE.instantiate()
 		ship.ship_texture = AI_TEXTURE
 		ships_root.add_child(ship)
 		ship.team = "ENEMY"
-		ship.speed_options = [1, 2, 3]
-		ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
-		_apply_spec(ship, specs[i])
+		if spec.get("is_capital", false):
+			ship.speed_options = [1]
+			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT"]
+		else:
+			ship.speed_options = [1, 2, 3]
+			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
+		_apply_spec(ship, spec)
+		if spec.get("is_capital", false):
+			ship.make_capital()
 		var slot: Array = ENEMY_SLOTS[i % ENEMY_SLOTS.size()]
 		ship.position = slot[0]
 		ship.rotation = slot[1]

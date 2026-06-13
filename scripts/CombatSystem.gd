@@ -141,6 +141,17 @@ func _has_nearby_ally(ship: Ship, ships: Array) -> bool:
 	return false
 
 
+func _all_targets_in_arc(shooter: Ship, ships: Array) -> Array:
+	var out: Array = []
+	for s in ships:
+		var t: Ship = s as Ship
+		if t == shooter or t.is_destroyed or t.team == shooter.team:
+			continue
+		if ManeuverSystem.is_in_firing_arc(shooter, t):
+			out.append(t)
+	return out
+
+
 func pick_target(shooter: Ship, ships: Array) -> Ship:
 	var best: Ship = null
 	var best_dist: float = INF
@@ -173,6 +184,19 @@ func run_combat(ships: Array) -> void:
 	var engagements: Array = []  # { shooter, target, shots, used_lock }
 	for s in alive:
 		var shooter: Ship = s as Ship
+		if shooter.is_capital:
+			# Capital ships fire a broadside at every enemy in their wide arc.
+			var targets: Array = _all_targets_in_arc(shooter, ships)
+			var best_chance: float = 0.0
+			for t in targets:
+				var tshots: Array = _build_shots(shooter, t, true)
+				engagements.append({
+					"shooter": shooter, "target": t, "shots": tshots, "used_lock": false,
+				})
+				best_chance = maxf(best_chance, _display_chance(tshots))
+			shooter.show_combat_ui(not targets.is_empty(), best_chance, "")
+			continue
+
 		var target: Ship = pick_target(shooter, ships)
 		var in_arc: bool = target != null
 		var shots: Array = _build_shots(shooter, target, in_arc) if in_arc else []

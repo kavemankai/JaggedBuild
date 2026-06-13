@@ -91,10 +91,22 @@ func get_missions() -> Array:
 			"name": "DREADNOUGHT ASSAULT",
 			"capital": true,
 			"enemies": [
-				_enemy("ESCORT", 2, "", "CANNONS", 2, 3, 2, 2, [0.4, 0.3, 0.5]),
+				_capital("DREADNOUGHT", 4, 1, 4, 10, [0.6, 0.2, 0.2]),
+				_enemy("ESCORT", 2, "", "BURST", 3, 2, 2, 2, [0.4, 0.3, 0.5]),
 			],
 		},
 	]
+
+
+func _capital(p_name: String, atk: int, dfn: int, shd: int, hp: int, accent: Array) -> Dictionary:
+	return {
+		"name": p_name, "base_skill": 1, "skill": 1,
+		"accuracy": 1.0, "agility": 1.0, "nerve": 1.0,
+		"passive": "", "active": "", "weapon": "CANNONS",
+		"attack": atk, "defence": dfn, "shields": shd, "hull": hp,
+		"accent": accent, "xp": 0, "kills": 0, "status": "healthy",
+		"is_capital": true,
+	}
 
 
 func _enemy(p_name: String, skill: int, passive: String, weapon: String,

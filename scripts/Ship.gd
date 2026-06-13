@@ -20,6 +20,7 @@ extends Node2D
 @export var weapon: Resource = null
 @export var pilot: Resource = null
 @export var team: String = "PLAYER"
+@export var is_capital: bool = false
 
 var selected_maneuver: Maneuver = null
 var heavy_cooldown: int = 0
@@ -134,7 +135,28 @@ func apply_setup_passives() -> void:
 
 
 func is_ionized() -> bool:
-	return ion_tokens > 0
+	# Capital ships are too massive to be disrupted by ion fire.
+	return ion_tokens > 0 and not is_capital
+
+
+# Turns this ship into a hulking capital ship: larger sprite and firing arc.
+func make_capital() -> void:
+	is_capital = true
+	_body.scale = Vector2(7.0, 7.0)
+	_capital_rebuild_arc()
+
+
+func _capital_rebuild_arc() -> void:
+	var pts := PackedVector2Array()
+	pts.append(Vector2.ZERO)
+	for i in range(13):
+		var t := float(i) / 12.0
+		# Wide broadside arc (~150 degrees) with extended range.
+		var angle: float = lerp(deg_to_rad(-75.0), deg_to_rad(75.0), t)
+		pts.append(Vector2(0.0, -1.0).rotated(angle) * (ManeuverSystem.MAX_RANGE * 1.2))
+	_firing_arc.polygon = pts
+	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.12)
+	_firing_arc.visible = false
 
 
 func get_maneuver_color(bearing: String) -> String:
