@@ -90,7 +90,7 @@ func get_missions() -> Array:
 			"capital": false,
 			"enemies": [
 				_enemy("VIPER", 3, "MARKSMAN", "ION", 2, 3, 3, 2, [0.3, 0.3, 0.4]),
-				_enemy("FANG", 2, "", "BURST", 3, 2, 2, 2, [0.5, 0.2, 0.4]),
+				_enemy("FANG", 2, "", "BURST", 3, 2, 2, 2, [0.5, 0.2, 0.4], "enemy_assault"),
 			],
 		},
 		{
@@ -100,7 +100,7 @@ func get_missions() -> Array:
 				_capital_body("DREADNOUGHT", [0.5, 0.16, 0.18]),
 				_turret("TURRET A", 500.0, [0.75, 0.3, 0.25]),
 				_turret("TURRET B", 1100.0, [0.75, 0.3, 0.25]),
-				_enemy("ESCORT", 2, "", "BURST", 3, 2, 2, 2, [0.4, 0.3, 0.5]),
+				_enemy("ESCORT", 2, "", "BURST", 3, 2, 2, 2, [0.4, 0.3, 0.5], "enemy_assault"),
 			],
 		},
 	]
@@ -131,13 +131,15 @@ func _turret(p_name: String, x_offset: float, accent: Array) -> Dictionary:
 
 
 func _enemy(p_name: String, skill: int, passive: String, weapon: String,
-		atk: int, dfn: int, shd: int, hp: int, accent: Array) -> Dictionary:
+		atk: int, dfn: int, shd: int, hp: int, accent: Array,
+		ship_class: String = "enemy_fighter") -> Dictionary:
 	return {
 		"name": p_name, "base_skill": skill, "skill": skill,
 		"accuracy": 1.0, "agility": 1.1, "nerve": 0.1,
 		"passive": passive, "active": "", "weapon": weapon,
 		"attack": atk, "defence": dfn, "shields": shd, "hull": hp,
 		"accent": accent, "xp": 0, "kills": 0, "status": "healthy",
+		"ship_class": ship_class,
 	}
 
 

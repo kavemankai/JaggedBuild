@@ -121,6 +121,7 @@ func _deploy_enemies(mission: Dictionary) -> Array:
 			ship.speed_options = [1, 2, 3]
 			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
 			_apply_spec(ship, spec)
+			ship.dial_data = _dial_for_class(spec.get("ship_class", "enemy_fighter"))
 			var slot: Array = ENEMY_SLOTS[slot_i % ENEMY_SLOTS.size()]
 			slot_i += 1
 			ship.position = slot[0]
@@ -169,6 +170,13 @@ func _apply_spec(ship: Ship, spec: Dictionary) -> void:
 		ship.accent_color = Color(a[0], a[1], a[2], 1.0)
 
 	ship.apply_setup_passives()
+
+
+func _dial_for_class(class_id: String):
+	match class_id:
+		"enemy_scout":   return ShipDials.enemy_scout()
+		"enemy_assault": return ShipDials.enemy_assault()
+		_:               return ShipDials.enemy_fighter()
 
 
 func _weapon_type(weapon_name: String) -> Weapon.Type:
