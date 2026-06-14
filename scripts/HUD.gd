@@ -150,12 +150,19 @@ func show_result(message: String, color: Color, summary: Array) -> void:
 		text += "\n"
 		for line in summary:
 			text += "\n" + str(line)
-	if CampaignManager.is_campaign_complete():
-		text += "\n\nCAMPAIGN COMPLETE"
 	text += "\n\nPRESS ANY KEY"
 	_result.text = text
 	_result.modulate = color
-	_result.add_theme_font_size_override("font_size", 40)
+	# Scale the font down so long campaign-end / memorial summaries fit the screen.
+	var lines: int = text.count("\n") + 1
+	var size: int = 40
+	if lines > 18:
+		size = 18
+	elif lines > 10:
+		size = 24
+	elif lines > 5:
+		size = 30
+	_result.add_theme_font_size_override("font_size", size)
 	_result.visible = true
 
 

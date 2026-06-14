@@ -288,9 +288,8 @@ func _on_all_confirmed() -> void:
 	RoundManager.resolve_maneuvers()
 
 
-func _on_game_ended(message: String, color: Color) -> void:
+func _on_game_ended(message: String, color: Color, won: bool) -> void:
 	_game_over = true
-	var won: bool = not RoundManager.is_team_alive("ENEMY")
 	CampaignManager.record_battle(_player_ships, won)
 	hud.show_result(message, color, CampaignManager.last_summary)
 

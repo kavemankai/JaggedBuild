@@ -9,7 +9,7 @@ signal resolution_phase_started
 signal action_phase_started
 signal combat_phase_started
 signal evaluation_phase_started
-signal game_ended(message: String, color: Color)
+signal game_ended(message: String, color: Color, won: bool)
 
 var current_phase: Phase = Phase.PLANNING
 var round_number: int = 0
@@ -97,9 +97,13 @@ func _evaluate() -> void:
 	current_phase = Phase.EVALUATION
 	evaluation_phase_started.emit()
 
+	var reach_edge: bool = objective != null and objective.type == Objective.Type.REACH_EDGE
 	for ship in ships:
 		var s0: Ship = ship as Ship
 		if s0.is_targetable and ManeuverSystem.is_out_of_bounds(s0.global_position):
+			# In a REACH objective, a friendly crossing the top edge has escaped, not died.
+			if reach_edge and s0.team == "PLAYER" and s0.global_position.y <= objective.edge_y:
+				continue
 			s0.is_destroyed = true
 
 	await get_tree().create_timer(0.3).timeout
@@ -115,11 +119,11 @@ func _evaluate() -> void:
 
 	match result:
 		"WIN":
-			_end_game("OBJECTIVE COMPLETE", Color(0.2, 1.0, 0.2, 1.0))
+			_end_game("OBJECTIVE COMPLETE", Color(0.2, 1.0, 0.2, 1.0), true)
 		"LOSE":
-			_end_game("SQUADRON LOST", Color(1.0, 0.2, 0.2, 1.0))
+			_end_game("SQUADRON LOST", Color(1.0, 0.2, 0.2, 1.0), false)
 		"MUTUAL":
-			_end_game("MUTUAL DESTRUCTION", Color.WHITE)
+			_end_game("MUTUAL DESTRUCTION", Color.WHITE, false)
 		_:
 			begin_round()
 
@@ -166,6 +170,6 @@ func is_team_alive(team_name: String) -> bool:
 	return false
 
 
-func _end_game(message: String, color: Color) -> void:
+func _end_game(message: String, color: Color, won: bool) -> void:
 	current_phase = Phase.EVALUATION
-	game_ended.emit(message, color)
+	game_ended.emit(message, color, won)
