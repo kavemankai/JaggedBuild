@@ -139,7 +139,7 @@ func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 			# Ion weapons deal no hull/shield damage — only ion track.
 			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 0, "ion": 1, "bypass": false, "hit": false}]
 		Weapon.Type.MISSILES:
-			if attacker.target_lock != target or attacker.missiles_ammo <= 0:
+			if attacker.target_lock != defender or attacker.missiles_ammo <= 0:
 				return []
 			attacker.missiles_ammo -= 1
 			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc, 1), "damage": MISSILES_DAMAGE, "ion": 0, "bypass": false, "hit": false}]

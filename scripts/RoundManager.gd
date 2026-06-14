@@ -52,8 +52,8 @@ func resolve_maneuvers() -> void:
 		var move_color: String = s.get_maneuver_color(bearing, speed)
 		if move_color == "RED":
 			if randf() >= s.get_nerve():
-				if s.upgrade == "Veteran Reflexes" and not s._veteran_stress_blocked:
-					s._veteran_stress_blocked = true
+				if s.upgrade == "Veteran Reflexes" and not s.veteran_stress_blocked:
+					s.veteran_stress_blocked = true
 				else:
 					s.stress += 1
 					s.pulse_stress()

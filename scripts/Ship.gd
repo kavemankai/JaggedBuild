@@ -45,7 +45,7 @@ var overcharged: bool = false
 var kills: int = 0
 var missiles_ammo: int = 2
 var upgrade: String = ""
-var _veteran_stress_blocked: bool = false
+var veteran_stress_blocked: bool = false
 var _arc_pts: Array = []
 
 const CAPITAL_DRIFT_SPEED: float = 35.0
