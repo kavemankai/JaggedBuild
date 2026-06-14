@@ -224,8 +224,13 @@ func _on_pilot_changed(item_idx: int, slot: int) -> void:
 		return
 	_slot_pilot[slot] = ids[item_idx]
 	_sync_slot_to_pilot(slot)
-	# Rebuild the sibling's pilot list so the new pick can't be duplicated.
-	_populate_pilots(1 - slot)
+	# Rebuild the sibling's pilot list so the new pick can't be duplicated. If that
+	# bumped the sibling onto a different pilot, resync its loadout dropdowns too.
+	var other: int = 1 - slot
+	var before: Variant = _slot_pilot[other]
+	_populate_pilots(other)
+	if _class_opts[other] != null and _slot_pilot[other] != before:
+		_sync_slot_to_pilot(other)
 
 
 # Set a slot's class/weapon/upgrade dropdowns to its pilot's stored loadout.
