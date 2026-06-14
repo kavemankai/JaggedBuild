@@ -46,6 +46,7 @@ const CAPITAL_DRIFT_SPEED: float = 35.0
 const CAPITAL_DRIFT_MARGIN: float = 280.0
 var _capital_drift: bool = false
 var _drift_dir: float = 1.0
+var _draw_as_hull: bool = false
 
 @onready var _body: Sprite2D = $Body
 @onready var _firing_arc: Polygon2D = $FiringArc
@@ -192,15 +193,25 @@ func sensors_disabled() -> bool:
 func make_capital() -> void:
 	is_capital = true
 	is_targetable = false
-	_body.scale = Vector2(9.0, 5.0)
+	_body.visible = false
 	_firing_arc.visible = false
+	_draw_as_hull = true
+	queue_redraw()
+
+
+func _draw() -> void:
+	if not _draw_as_hull:
+		return
+	draw_rect(Rect2(0.0, 0.0, ManeuverSystem.ARENA_WIDTH, 80.0), Color(0.22, 0.22, 0.26, 1.0))
+	draw_line(Vector2(0.0, 80.0), Vector2(ManeuverSystem.ARENA_WIDTH, 80.0),
+			Color(0.5, 0.5, 0.55, 0.9), 2.0)
 
 
 # Makes this ship a capital turret: a wide-arc emplacement with its own hull.
 func make_turret() -> void:
 	firing_arc_degrees = 120.0
 	firing_range_mult = 1.1
-	_body.scale = Vector2(2.0, 2.0)
+	_body.scale = Vector2(3.0, 3.0)
 	_build_arc_polygon()
 
 

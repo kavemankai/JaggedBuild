@@ -94,13 +94,12 @@ func _deploy_enemies(mission: Dictionary) -> Array:
 			ship.bearing_options = []
 			_apply_spec(ship, spec)
 			ship.make_capital()
-			ship.position = Vector2(800, 150)
+			ship.position = Vector2(0, 0)
 			ship.rotation = 0.0
-			ship.enable_capital_drift()
 			capital_body = ship
 
 		elif spec.get("is_turret", false):
-			# Mount on the capital hull so the turret drifts with it. Turrets never move.
+			# Mount on the capital hull so turrets move with it. Turrets never manoeuvre.
 			if capital_body != null:
 				capital_body.add_child(ship)
 			else:
@@ -110,7 +109,7 @@ func _deploy_enemies(mission: Dictionary) -> Array:
 			_apply_spec(ship, spec)
 			ship.make_turret()
 			if capital_body != null:
-				ship.position = Vector2(float(spec.get("x_offset", 0.0)), 70.0)
+				ship.position = Vector2(float(spec.get("x_offset", 0.0)), 40.0)
 			else:
 				ship.position = Vector2(800.0 + float(spec.get("x_offset", 0.0)), 220.0)
 			ship.rotation = PI

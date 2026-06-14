@@ -98,9 +98,8 @@ func get_missions() -> Array:
 			"capital": true,
 			"enemies": [
 				_capital_body("DREADNOUGHT", [0.5, 0.16, 0.18]),
-				_turret("TURRET A", -300.0, [0.75, 0.3, 0.25]),
-				_turret("TURRET B", 0.0, [0.75, 0.3, 0.25]),
-				_turret("TURRET C", 300.0, [0.75, 0.3, 0.25]),
+				_turret("TURRET A", 500.0, [0.75, 0.3, 0.25]),
+				_turret("TURRET B", 1100.0, [0.75, 0.3, 0.25]),
 				_enemy("ESCORT", 2, "", "BURST", 3, 2, 2, 2, [0.4, 0.3, 0.5]),
 			],
 		},
