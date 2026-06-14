@@ -34,9 +34,10 @@ const ION_DISABLE_MAX_ROUNDS: int = 2
 const MARKSMAN_BONUS: float = 0.08
 const EVASIVE_BONUS: float = 0.08
 const OVERCHARGE_ATK: int = 2
+const MISSILES_DAMAGE: int = 4
 
 
-func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1) -> float:
+func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1, ignore_def: int = 0) -> float:
 	# Base attack/defence scaled by pilot accuracy/agility
 	var base_atk: int = atk_override if atk_override >= 0 else attacker.attack
 	var eff_atk: int = clampi(roundi(float(base_atk) * attacker.get_accuracy()), 0, 6)
@@ -49,6 +50,10 @@ func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1
 	elif dist > ManeuverSystem.RANGE_MEDIUM:
 		eff_def += 1
 
+	# Targeting Computer: +1 atk die at close range
+	if attacker.upgrade == "Targeting Computer" and dist < ManeuverSystem.RANGE_CLOSE:
+		eff_atk += 1
+
 	# Rear arc
 	if ManeuverSystem.is_in_rear_arc(attacker, defender):
 		eff_def = max(0, eff_def - 1)
@@ -56,6 +61,9 @@ func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1
 	# Formation grants +1 effective defence die (mutual defensive coverage).
 	if defender.in_formation:
 		eff_def += 1
+
+	# Missiles ignore 1 effective defence die.
+	eff_def = max(0, eff_def - ignore_def)
 
 	eff_atk = clampi(eff_atk, 0, 6)
 	eff_def = clampi(eff_def, 0, 6)
@@ -130,6 +138,11 @@ func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 		Weapon.Type.ION:
 			# Ion weapons deal no hull/shield damage — only ion track.
 			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 0, "ion": 1, "bypass": false, "hit": false}]
+		Weapon.Type.MISSILES:
+			if attacker.target_lock != target or attacker.missiles_ammo <= 0:
+				return []
+			attacker.missiles_ammo -= 1
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc, 1), "damage": MISSILES_DAMAGE, "ion": 0, "bypass": false, "hit": false}]
 		Weapon.Type.TURRET:
 			# Capital-grade emplacement: bypasses shields, cooldown between shots.
 			if attacker.heavy_cooldown > 0:

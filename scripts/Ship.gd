@@ -43,6 +43,9 @@ var selected_action: String = ""
 var ability_used: bool = false
 var overcharged: bool = false
 var kills: int = 0
+var missiles_ammo: int = 2
+var upgrade: String = ""
+var _veteran_stress_blocked: bool = false
 var _arc_pts: Array = []
 
 const CAPITAL_DRIFT_SPEED: float = 35.0
@@ -157,11 +160,16 @@ func has_active_ability() -> bool:
 	return get_active_ability() != ""
 
 
-# Applies one-time setup perks (e.g. bonus hull). Call after pilot is assigned.
+# Applies one-time setup perks. Call after pilot AND upgrade are assigned, AFTER class stats.
 func apply_setup_passives() -> void:
 	match get_passive():
 		"STALWART":
 			hull += 1
+	match upgrade:
+		"Reinforced Plating":
+			hull += 1
+		"Shield Capacitor":
+			shields += 1
 
 
 func is_ionized() -> bool:
@@ -208,6 +216,10 @@ func _draw() -> void:
 	draw_rect(Rect2(0.0, 0.0, ManeuverSystem.ARENA_WIDTH, 80.0), Color(0.22, 0.22, 0.26, 1.0))
 	draw_line(Vector2(0.0, 80.0), Vector2(ManeuverSystem.ARENA_WIDTH, 80.0),
 			Color(0.5, 0.5, 0.55, 0.9), 2.0)
+
+
+func rebuild_arc() -> void:
+	_build_arc_polygon()
 
 
 # Makes this ship a capital turret: a wide-arc emplacement with its own hull.

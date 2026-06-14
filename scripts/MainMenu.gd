@@ -2,9 +2,11 @@ extends Control
 
 var _roster_box: VBoxContainer
 var _mission_btns: Array = []
+var _skirmish_lbl: Label
 
 
 func _ready() -> void:
+	CampaignManager.skirmish_mode = false
 	_build_ui()
 
 
@@ -21,7 +23,7 @@ func _build_ui() -> void:
 	add_child(center)
 
 	var vbox := VBoxContainer.new()
-	vbox.custom_minimum_size = Vector2(620, 0)
+	vbox.custom_minimum_size = Vector2(640, 0)
 	vbox.add_theme_constant_override("separation", 10)
 	center.add_child(vbox)
 
@@ -47,7 +49,7 @@ func _build_ui() -> void:
 	vbox.add_child(HSeparator.new())
 
 	var mission_hdr := Label.new()
-	mission_hdr.text = "SELECT MISSION"
+	mission_hdr.text = "CAMPAIGN MISSIONS"
 	mission_hdr.add_theme_font_size_override("font_size", 13)
 	mission_hdr.modulate = Color(0.55, 0.55, 0.6)
 	vbox.add_child(mission_hdr)
@@ -56,7 +58,7 @@ func _build_ui() -> void:
 	var missions: Array = CampaignManager.get_missions()
 	for i in range(missions.size()):
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(620, 44)
+		btn.custom_minimum_size = Vector2(640, 44)
 		btn.add_theme_font_size_override("font_size", 16)
 		btn.pressed.connect(_on_mission_selected.bind(i))
 		_mission_btns.append(btn)
@@ -64,9 +66,30 @@ func _build_ui() -> void:
 
 	vbox.add_child(HSeparator.new())
 
+	var skirmish_hdr := Label.new()
+	skirmish_hdr.text = "SKIRMISH"
+	skirmish_hdr.add_theme_font_size_override("font_size", 13)
+	skirmish_hdr.modulate = Color(0.55, 0.55, 0.6)
+	vbox.add_child(skirmish_hdr)
+
+	_skirmish_lbl = Label.new()
+	_skirmish_lbl.add_theme_font_size_override("font_size", 13)
+	_skirmish_lbl.modulate = Color(0.65, 0.65, 0.7)
+	vbox.add_child(_skirmish_lbl)
+
+	var skirmish_btn := Button.new()
+	skirmish_btn.text = "PLAY SKIRMISH"
+	skirmish_btn.custom_minimum_size = Vector2(640, 44)
+	skirmish_btn.add_theme_font_size_override("font_size", 16)
+	skirmish_btn.modulate = Color(0.8, 0.8, 1.0)
+	skirmish_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/SkirmishSetup.tscn"))
+	vbox.add_child(skirmish_btn)
+
+	vbox.add_child(HSeparator.new())
+
 	var reset_btn := Button.new()
 	reset_btn.text = "RESET CAMPAIGN"
-	reset_btn.custom_minimum_size = Vector2(620, 36)
+	reset_btn.custom_minimum_size = Vector2(640, 36)
 	reset_btn.add_theme_font_size_override("font_size", 13)
 	reset_btn.modulate = Color(0.9, 0.45, 0.45)
 	reset_btn.pressed.connect(_on_reset)
@@ -84,14 +107,17 @@ func _refresh_display() -> void:
 		var skill: int = int(entry.get("skill", 1))
 		var xp: int = int(entry.get("xp", 0))
 		var status: String = entry.get("status", "healthy")
+		var cls: String = entry.get("ship_class", "fighter")
+		var upg: String = entry.get("upgrade", "")
+		var upg_str: String = "  [%s]" % upg if upg != "" else ""
 
 		var row := Label.new()
-		row.text = "%s   skill %d   xp %d   %s" % [pname, skill, xp, status.to_upper()]
-		row.add_theme_font_size_override("font_size", 15)
+		row.text = "%s   skill %d   xp %d   %s   %s%s" % [pname, skill, xp, status.to_upper(), cls.replace("_", " ").to_upper(), upg_str]
+		row.add_theme_font_size_override("font_size", 14)
 		match status:
-			"dead":     row.modulate = Color(0.32, 0.32, 0.32)
-			"injured":  row.modulate = Color(1.0, 0.6, 0.2)
-			_:          row.modulate = Color(0.9, 0.9, 0.9)
+			"dead":    row.modulate = Color(0.32, 0.32, 0.32)
+			"injured": row.modulate = Color(1.0, 0.6, 0.2)
+			_:         row.modulate = Color(0.9, 0.9, 0.9)
 		_roster_box.add_child(row)
 
 	var missions: Array = CampaignManager.get_missions()
@@ -101,11 +127,15 @@ func _refresh_display() -> void:
 		var current_tag: String = "  ◄ CURRENT" if i == CampaignManager.mission_index else ""
 		btn.text = "MISSION %d — %s%s" % [i + 1, m.get("name", ""), current_tag]
 
+	var w: int = int(CampaignManager.skirmish_record.get("w", 0))
+	var l: int = int(CampaignManager.skirmish_record.get("l", 0))
+	_skirmish_lbl.text = "W %d  /  L %d" % [w, l]
+
 
 func _on_mission_selected(idx: int) -> void:
 	CampaignManager.mission_index = idx
 	CampaignManager.save()
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	get_tree().change_scene_to_file("res://scenes/LoadoutScreen.tscn")
 
 
 func _on_reset() -> void:

@@ -136,7 +136,9 @@ func _weapon_text(ship: Ship) -> String:
 				return "Heavy [cd:%d]" % ship.heavy_cooldown
 			return "Heavy READY"
 		Weapon.Type.MISSILES:
-			return "Missiles"
+			if ship.missiles_ammo <= 0:
+				return "Missiles [EMPTY]"
+			return "Missiles x%d" % ship.missiles_ammo
 		Weapon.Type.ION:
 			return "Ion"
 		Weapon.Type.TURRET:

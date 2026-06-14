@@ -4,6 +4,7 @@ const SHIP_SCENE: PackedScene = preload("res://scenes/Ship.tscn")
 const GHOST_SCENE: PackedScene = preload("res://scenes/GhostShip.tscn")
 const AI_TEXTURE: Texture2D = preload("res://assets/ships/ship_ai.png")
 const ShipDials := preload("res://scripts/ShipDials.gd")
+const ShipClasses := preload("res://scripts/ShipClasses.gd")
 
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var wing_ship: Ship = $Ships/WingShip
@@ -35,7 +36,11 @@ const GHOST_BODY_ALPHAS: Array = [0.45, 0.4, 0.35]
 
 
 func _ready() -> void:
-	var mission: Dictionary = CampaignManager.current_mission()
+	var mission: Dictionary
+	if CampaignManager.skirmish_mode:
+		mission = {"name": "SKIRMISH", "capital": false, "enemies": CampaignManager.skirmish_enemies}
+	else:
+		mission = CampaignManager.current_mission()
 	_player_ships = _deploy_player_team()
 	_enemy_ships = _deploy_enemies(mission)
 	_ships = _player_ships + _enemy_ships
@@ -68,8 +73,16 @@ func _deploy_player_team() -> Array:
 			ship.team = "PLAYER"
 			ship.speed_options = [1, 2, 3, 4]
 			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
-			ship.dial_data = ShipDials.fighter()
-			_apply_spec(ship, pilots[i])
+			_apply_spec(ship, pilots[i], true)  # skip passives until after class stats
+			var cls = ShipClasses.get_class(pilots[i].get("ship_class", "fighter"))
+			ship.dial_data = cls.dial
+			ship.attack = cls.attack
+			ship.defence = cls.defence
+			ship.shields = cls.shields
+			ship.hull = cls.hull
+			ship.firing_arc_degrees = cls.firing_arc_degrees
+			ship.rebuild_arc()
+			ship.apply_setup_passives()
 			ship.position = PLAYER_SLOTS[i][0]
 			ship.rotation = PLAYER_SLOTS[i][1]
 			deployed.append(ship)
@@ -142,7 +155,7 @@ func _build_ghosts() -> void:
 		_ghosts[ship] = ghost
 
 
-func _apply_spec(ship: Ship, spec: Dictionary) -> void:
+func _apply_spec(ship: Ship, spec: Dictionary, skip_passives: bool = false) -> void:
 	var p := Pilot.new()
 	p.pilot_name = spec.get("name", "?")
 	p.skill = int(spec.get("skill", 3))
@@ -159,6 +172,7 @@ func _apply_spec(ship: Ship, spec: Dictionary) -> void:
 	ship.defence = int(spec.get("defence", 2))
 	ship.shields = int(spec.get("shields", 2))
 	ship.hull = int(spec.get("hull", 3))
+	ship.upgrade = spec.get("upgrade", "")
 
 	var w := Weapon.new()
 	w.weapon_type = _weapon_type(spec.get("weapon", "CANNONS"))
@@ -169,7 +183,8 @@ func _apply_spec(ship: Ship, spec: Dictionary) -> void:
 		var a: Array = spec["accent"]
 		ship.accent_color = Color(a[0], a[1], a[2], 1.0)
 
-	ship.apply_setup_passives()
+	if not skip_passives:
+		ship.apply_setup_passives()
 
 
 func _dial_for_class(class_id: String):

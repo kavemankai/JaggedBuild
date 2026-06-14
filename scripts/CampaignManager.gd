@@ -17,6 +17,9 @@ const SKILL_STEP_THRESHOLDS: Array = [5, 15, 30, 50, 75]
 var roster: Array = []          # player pilot/ship specs
 var mission_index: int = 0
 var last_summary: Array = []     # human-readable result lines for the end screen
+var skirmish_mode: bool = false
+var skirmish_enemies: Array = []
+var skirmish_record: Dictionary = {"w": 0, "l": 0}
 
 
 func _ready() -> void:
@@ -35,6 +38,7 @@ func _init_default_roster() -> void:
 			"attack": 3, "defence": 2, "shields": 2, "hull": 3,
 			"accent": [1.0, 0.3, 0.2],
 			"xp": 0, "kills": 0, "status": "healthy",
+			"ship_class": "fighter", "upgrade": "",
 		},
 		{
 			"name": "HAWK", "base_skill": 4, "skill": 4,
@@ -43,6 +47,7 @@ func _init_default_roster() -> void:
 			"attack": 3, "defence": 2, "shields": 2, "hull": 3,
 			"accent": [0.3, 0.8, 1.0],
 			"xp": 0, "kills": 0, "status": "healthy",
+			"ship_class": "fighter", "upgrade": "",
 		},
 	]
 	mission_index = 0
@@ -143,10 +148,26 @@ func _enemy(p_name: String, skill: int, passive: String, weapon: String,
 	}
 
 
+func start_skirmish(enemies: Array) -> void:
+	skirmish_mode = true
+	skirmish_enemies = enemies
+
+
 # --------------------------------------------------------------- post-battle
 # Injury/death (spec 8.5): a destroyed pilot is injured if the mission was won
 # (rests one mission, then recovers) or killed if the mission was lost.
 func record_battle(player_ships: Array, won: bool) -> void:
+	if skirmish_mode:
+		skirmish_mode = false
+		if won:
+			skirmish_record["w"] = int(skirmish_record.get("w", 0)) + 1
+			last_summary = ["SKIRMISH WON  W:%d L:%d" % [skirmish_record["w"], skirmish_record.get("l", 0)]]
+		else:
+			skirmish_record["l"] = int(skirmish_record.get("l", 0)) + 1
+			last_summary = ["SKIRMISH LOST  W:%d L:%d" % [skirmish_record.get("w", 0), skirmish_record["l"]]]
+		save()
+		return
+
 	last_summary.clear()
 	var deployed: Dictionary = {}
 
@@ -241,6 +262,7 @@ func save() -> void:
 	var data := {
 		"roster": roster,
 		"mission_index": mission_index,
+		"skirmish_record": skirmish_record,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -263,6 +285,7 @@ func load_campaign() -> bool:
 	var data: Dictionary = parsed
 	roster = data.get("roster", [])
 	mission_index = int(data.get("mission_index", 0))
+	skirmish_record = data.get("skirmish_record", {"w": 0, "l": 0})
 	return not roster.is_empty()
 
 
