@@ -23,7 +23,9 @@ func update_preview(ship: Ship, maneuver: Maneuver, active: bool = false) -> voi
 	ghost_body.global_position = end_state["position"]
 	ghost_body.rotation = end_state["rotation"] + deg_to_rad(-90.0)
 
-	var move_color: String = ship.get_maneuver_color(maneuver.bearing)
+	# Pass speed so dial-based ships report the true cell color (the bearing-only
+	# overload falls back to the legacy red/green arrays and mislabels dial maneuvers).
+	var move_color: String = ship.get_maneuver_color(maneuver.bearing, maneuver.speed)
 	match move_color:
 		"RED":
 			ghost_body.modulate = Color(1.0, 0.45, 0.45, body_alpha)

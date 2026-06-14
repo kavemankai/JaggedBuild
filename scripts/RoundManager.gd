@@ -16,6 +16,10 @@ var ships: Array = []
 
 func register_ships(ship_array: Array) -> void:
 	ships = ship_array
+	# Per-battle reset: this autoload persists across the whole app, so round state
+	# must be cleared when a new battle registers its ships, or round numbers leak.
+	round_number = 0
+	current_phase = Phase.PLANNING
 
 
 func begin_round() -> void:

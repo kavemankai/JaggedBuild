@@ -11,17 +11,35 @@ var _rows: Array = []  # parallel to _ships: { shields, hull, tokens, status, we
 
 
 func _ready() -> void:
-	RoundManager.planning_phase_started.connect(func():
-		_round_label.text = "Round %d" % RoundManager.round_number
-		_phase_label.text = "PLANNING")
-	RoundManager.resolution_phase_started.connect(func():
-		_phase_label.text = "RESOLVING")
-	RoundManager.action_phase_started.connect(func():
-		_phase_label.text = "ACTIONS")
-	RoundManager.combat_phase_started.connect(func():
-		_phase_label.text = "COMBAT")
-	RoundManager.evaluation_phase_started.connect(func():
-		_phase_label.text = "")
+	# Method references (not lambdas) so Godot auto-disconnects them when this HUD is
+	# freed on scene change. Lambdas connected to a persistent autoload would otherwise
+	# stack across battles and fire on freed instances.
+	RoundManager.planning_phase_started.connect(_on_planning)
+	RoundManager.resolution_phase_started.connect(_on_resolution)
+	RoundManager.action_phase_started.connect(_on_action)
+	RoundManager.combat_phase_started.connect(_on_combat)
+	RoundManager.evaluation_phase_started.connect(_on_evaluation)
+
+
+func _on_planning() -> void:
+	_round_label.text = "Round %d" % RoundManager.round_number
+	_phase_label.text = "PLANNING"
+
+
+func _on_resolution() -> void:
+	_phase_label.text = "RESOLVING"
+
+
+func _on_action() -> void:
+	_phase_label.text = "ACTIONS"
+
+
+func _on_combat() -> void:
+	_phase_label.text = "COMBAT"
+
+
+func _on_evaluation() -> void:
+	_phase_label.text = ""
 
 
 func set_mission_label(text: String) -> void:
