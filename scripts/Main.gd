@@ -74,7 +74,7 @@ func _deploy_player_team() -> Array:
 			ship.speed_options = [1, 2, 3, 4]
 			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
 			_apply_spec(ship, pilots[i], true)  # skip passives until after class stats
-			var cls = ShipClasses.get_class(pilots[i].get("ship_class", "fighter"))
+			var cls = ShipClasses.for_id(pilots[i].get("ship_class", "fighter"))
 			ship.dial_data = cls.dial
 			ship.attack = cls.attack
 			ship.defence = cls.defence

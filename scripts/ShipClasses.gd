@@ -5,7 +5,7 @@ const ShipClassData := preload("res://scripts/ShipClassData.gd")
 const ShipDials := preload("res://scripts/ShipDials.gd")
 
 
-static func get_class(class_id: String) -> ShipClassData:
+static func for_id(class_id: String) -> ShipClassData:
 	match class_id:
 		"heavy_fighter": return _heavy()
 		"interceptor":   return _interceptor()
@@ -18,7 +18,7 @@ static func player_class_ids() -> Array:
 
 
 static func display_name(class_id: String) -> String:
-	return get_class(class_id).class_name_display
+	return for_id(class_id).class_name_display
 
 
 # --- player classes ---

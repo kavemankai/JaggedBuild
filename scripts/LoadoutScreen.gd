@@ -173,7 +173,7 @@ func _populate_weapons(slot_idx: int) -> void:
 	if opt == null:
 		return
 	var pilot: Dictionary = _pilots[slot_idx] if slot_idx < _pilots.size() else {}
-	var cls = ShipClasses.get_class(_selected_classes[slot_idx])
+	var cls = ShipClasses.for_id(_selected_classes[slot_idx])
 	var ids: Array = cls.primary_weapon_options.duplicate()
 	opt.clear()
 	for w in ids:
@@ -191,7 +191,7 @@ func _update_stats(slot_idx: int) -> void:
 	var lbl: Label = _stats_labels[slot_idx]
 	if lbl == null or slot_idx >= _pilots.size():
 		return
-	var cls = ShipClasses.get_class(_selected_classes[slot_idx])
+	var cls = ShipClasses.for_id(_selected_classes[slot_idx])
 	var pilot: Dictionary = _pilots[slot_idx]
 	lbl.text = "ATK %d   DEF %d   SHD %d   HULL %d   ARC %d°\nPassive: %s     Active: %s" % [
 		cls.attack, cls.defence, cls.shields, cls.hull,
