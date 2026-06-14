@@ -234,4 +234,4 @@ func _on_game_ended(message: String, color: Color) -> void:
 
 func _input(event: InputEvent) -> void:
 	if _game_over and event is InputEventKey and event.pressed and not event.echo:
-		get_tree().reload_current_scene()
+		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")

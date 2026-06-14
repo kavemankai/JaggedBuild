@@ -49,6 +49,8 @@ func reset() -> void:
 
 
 func _open_selector(ship: Ship) -> void:
+	if ship.is_destroyed:
+		return
 	_selector.open_for(ship, _ghosts.get(ship))
 	_refresh_ghosts(ship)
 	_position_selector_over(ship)
@@ -93,7 +95,8 @@ func _refresh_ghosts(active_ship) -> void:
 func refresh() -> void:
 	var missing: int = 0
 	for s in _ships:
-		if (s as Ship).selected_maneuver == null:
+		var ship: Ship = s as Ship
+		if not ship.is_destroyed and ship.selected_maneuver == null:
 			missing += 1
 
 	_confirm_btn.disabled = missing > 0

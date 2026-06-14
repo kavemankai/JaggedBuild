@@ -67,6 +67,24 @@ func has_maneuver() -> bool:
 
 
 func refresh() -> void:
+	if ship.is_destroyed:
+		_name_label.text = ship.get_pilot_name() + "  [DOWN]"
+		_name_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+		_maneuver_label.text = "— DESTROYED —"
+		_maneuver_label.add_theme_color_override("font_color", Color(0.35, 0.35, 0.35))
+		_change_btn.disabled = true
+		if _stress_tween != null:
+			_stress_tween.kill()
+			_stress_tween = null
+		modulate = Color(0.38, 0.38, 0.38, 0.9)
+		for btn in _action_row.get_children():
+			if btn is Button:
+				btn.disabled = true
+		return
+
+	modulate = Color(1.0, 1.0, 1.0, 1.0)
+	_change_btn.disabled = false
+
 	if ship.selected_maneuver != null:
 		var m: Maneuver = ship.selected_maneuver
 		_maneuver_label.text = "► " + m.bearing.replace("_", " ") + " " + str(m.speed)
