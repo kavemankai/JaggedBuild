@@ -46,9 +46,10 @@ func resolve_maneuvers() -> void:
 		if ship.is_destroyed:
 			continue
 		var bearing: String = ship.selected_maneuver.bearing if ship.selected_maneuver else ""
+		var speed: int = ship.selected_maneuver.speed if ship.selected_maneuver else 0
 		await ship.execute_maneuver()
 		var s: Ship = ship as Ship
-		var move_color: String = s.get_maneuver_color(bearing)
+		var move_color: String = s.get_maneuver_color(bearing, speed)
 		if move_color == "RED":
 			if randf() >= s.get_nerve():
 				s.stress += 1

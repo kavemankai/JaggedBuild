@@ -25,6 +25,7 @@ extends Node2D
 @export var firing_arc_degrees: float = 90.0
 @export var firing_range_mult: float = 1.0
 
+var dial_data: DialData = null
 var selected_maneuver: Maneuver = null
 var heavy_cooldown: int = 0
 var is_destroyed: bool = false
@@ -215,7 +216,11 @@ func make_turret() -> void:
 	_build_arc_polygon()
 
 
-func get_maneuver_color(bearing: String) -> String:
+func get_maneuver_color(bearing: String, speed: int = 0) -> String:
+	if dial_data != null and speed > 0:
+		var c: String = dial_data.get_color(bearing, speed)
+		return c if c != "" else "WHITE"
+	# Legacy bearing-only fallback (used by enemy ships without a dial).
 	if bearing in red_bearings:
 		return "RED"
 	if bearing in green_bearings:

@@ -13,25 +13,39 @@ func select_maneuver(ai_ship: Ship, ships: Array, avoid_points: Array = []) -> M
 	var best_maneuver: Maneuver = null
 	var best_score: float = -INF
 
-	for bearing in ai_ship.bearing_options:
-		var color: String = ai_ship.get_maneuver_color(bearing)
-		if ai_ship.stress > 0 and color == "RED":
-			continue
-		# Disabled engines: only white (neutral) maneuvers remain available.
-		if engines_out and color != "WHITE":
-			continue
-		for speed in ai_ship.speed_options:
+	if ai_ship.dial_data != null:
+		for option: Dictionary in ai_ship.dial_data.get_all_options():
+			var bearing: String = option["bearing"] as String
+			var speed: int = int(option["speed"])
+			var color: String = option["color"] as String
+			if ai_ship.stress > 0 and color == "RED":
+				continue
+			if engines_out and color != "WHITE":
+				continue
 			var m := Maneuver.new()
 			m.bearing = bearing
 			m.speed = speed
-
-			var end_state := ManeuverSystem.compute_end_state(
-				ai_ship.global_position, ai_ship.rotation, m)
+			var end_state := ManeuverSystem.compute_end_state(ai_ship.global_position, ai_ship.rotation, m)
 			var score := _score_state(end_state, target, avoid_points)
-
 			if score > best_score:
 				best_score = score
 				best_maneuver = m
+	else:
+		for bearing in ai_ship.bearing_options:
+			var color: String = ai_ship.get_maneuver_color(bearing)
+			if ai_ship.stress > 0 and color == "RED":
+				continue
+			if engines_out and color != "WHITE":
+				continue
+			for speed in ai_ship.speed_options:
+				var m := Maneuver.new()
+				m.bearing = bearing
+				m.speed = speed
+				var end_state := ManeuverSystem.compute_end_state(ai_ship.global_position, ai_ship.rotation, m)
+				var score := _score_state(end_state, target, avoid_points)
+				if score > best_score:
+					best_score = score
+					best_maneuver = m
 
 	return best_maneuver
 

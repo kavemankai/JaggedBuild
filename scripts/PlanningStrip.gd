@@ -114,22 +114,36 @@ func _on_confirm() -> void:
 			ship.selected_action = "FOCUS"
 		# Safety: if a red maneuver slipped through on a stressed ship, swap it.
 		if ship.stress > 0 and ship.selected_maneuver != null \
-				and ship.get_maneuver_color(ship.selected_maneuver.bearing) == "RED":
+				and ship.get_maneuver_color(ship.selected_maneuver.bearing, ship.selected_maneuver.speed) == "RED":
 			ship.selected_maneuver = _closest_non_red(ship, ship.selected_maneuver.speed)
 	all_confirmed.emit()
 
 
 func _closest_non_red(ship: Ship, speed: int) -> Maneuver:
-	for bearing: String in ship.bearing_options:
-		if ship.get_maneuver_color(bearing) != "RED":
-			var m := Maneuver.new()
-			m.bearing = bearing
-			m.speed = speed
-			return m
-	# Fallback — straight.
+	if ship.dial_data != null:
+		# Prefer same speed; fall back to any non-red option.
+		for option: Dictionary in ship.dial_data.get_all_options():
+			if int(option["speed"]) == speed and option["color"] != "RED":
+				var m := Maneuver.new()
+				m.bearing = option["bearing"] as String
+				m.speed = speed
+				return m
+		for option: Dictionary in ship.dial_data.get_all_options():
+			if option["color"] != "RED":
+				var m := Maneuver.new()
+				m.bearing = option["bearing"] as String
+				m.speed = int(option["speed"])
+				return m
+	else:
+		for bearing: String in ship.bearing_options:
+			if ship.get_maneuver_color(bearing) != "RED":
+				var m := Maneuver.new()
+				m.bearing = bearing
+				m.speed = speed
+				return m
 	var fallback := Maneuver.new()
 	fallback.bearing = "STRAIGHT"
-	fallback.speed = speed
+	fallback.speed = 1
 	return fallback
 
 

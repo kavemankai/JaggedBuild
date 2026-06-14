@@ -67,6 +67,7 @@ func _deploy_player_team() -> Array:
 			ship.team = "PLAYER"
 			ship.speed_options = [1, 2, 3, 4]
 			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
+			ship.dial_data = ShipDials.fighter()
 			_apply_spec(ship, pilots[i])
 			ship.position = PLAYER_SLOTS[i][0]
 			ship.rotation = PLAYER_SLOTS[i][1]
