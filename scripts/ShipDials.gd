@@ -2,6 +2,8 @@ class_name ShipDials
 # Static factory — call as ShipDials.fighter() etc.
 # Gate 17 will add heavy(), interceptor(), gunship(), and enemy variants.
 
+const DialData := preload("res://scripts/DialData.gd")
+
 
 static func fighter() -> DialData:
 	var d := DialData.new()

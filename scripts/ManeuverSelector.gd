@@ -1,5 +1,7 @@
 extends PanelContainer
 
+const DialData := preload("res://scripts/DialData.gd")
+
 signal maneuver_picked(ship: Ship, maneuver: Maneuver)
 signal closed
 

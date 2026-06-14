@@ -3,6 +3,7 @@ extends Node2D
 const SHIP_SCENE: PackedScene = preload("res://scenes/Ship.tscn")
 const GHOST_SCENE: PackedScene = preload("res://scenes/GhostShip.tscn")
 const AI_TEXTURE: Texture2D = preload("res://assets/ships/ship_ai.png")
+const ShipDials := preload("res://scripts/ShipDials.gd")
 
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var wing_ship: Ship = $Ships/WingShip
