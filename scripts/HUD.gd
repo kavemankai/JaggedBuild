@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const Objective := preload("res://scripts/Objective.gd")
+
 @onready var _mission_label: Label = $Info/Mission
 @onready var _round_label: Label = $Info/Round
 @onready var _phase_label: Label = $Info/Phase
@@ -8,6 +10,8 @@ extends CanvasLayer
 
 var _ships: Array = []
 var _rows: Array = []  # parallel to _ships: { shields, hull, tokens, status, weapon, hull_low }
+var _objective: Objective = null
+var _objective_label: Label = null
 
 
 func _ready() -> void:
@@ -44,6 +48,16 @@ func _on_evaluation() -> void:
 
 func set_mission_label(text: String) -> void:
 	_mission_label.text = text
+
+
+func set_objective(obj: Objective) -> void:
+	_objective = obj
+	if _objective_label == null:
+		_objective_label = Label.new()
+		_objective_label.modulate = Color(0.55, 0.95, 0.65, 1.0)
+		_objective_label.add_theme_font_size_override("font_size", 13)
+		$Info.add_child(_objective_label)
+		$Info.move_child(_objective_label, 1)   # just under the mission name
 
 
 func setup_ships(ships: Array) -> void:
@@ -111,6 +125,9 @@ func setup_ships(ships: Array) -> void:
 
 
 func _process(_delta: float) -> void:
+	if _objective_label != null and _objective != null:
+		_objective_label.text = _objective.progress_text(_ships, RoundManager.round_number)
+
 	for i in range(_ships.size()):
 		var ship: Ship = _ships[i] as Ship
 		var row: Dictionary = _rows[i]

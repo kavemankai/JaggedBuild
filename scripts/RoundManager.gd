@@ -1,5 +1,7 @@
 extends Node
 
+const Objective := preload("res://scripts/Objective.gd")
+
 enum Phase { PLANNING, RESOLUTION, ACTION, COMBAT, EVALUATION }
 
 signal planning_phase_started
@@ -12,6 +14,7 @@ signal game_ended(message: String, color: Color)
 var current_phase: Phase = Phase.PLANNING
 var round_number: int = 0
 var ships: Array = []
+var objective: Objective = null
 
 
 func register_ships(ship_array: Array) -> void:
@@ -20,6 +23,10 @@ func register_ships(ship_array: Array) -> void:
 	# must be cleared when a new battle registers its ships, or round numbers leak.
 	round_number = 0
 	current_phase = Phase.PLANNING
+
+
+func set_objective(obj: Objective) -> void:
+	objective = obj
 
 
 func begin_round() -> void:
@@ -102,17 +109,19 @@ func _evaluate() -> void:
 	for ship in ships:
 		_process_ion(ship as Ship)
 
-	var player_alive: bool = is_team_alive("PLAYER")
-	var enemy_alive: bool = is_team_alive("ENEMY")
+	# Objective-driven win/loss. Falls back to destroy-all if none was set.
+	var obj: Objective = objective if objective != null else Objective.new()
+	var result: String = obj.evaluate(ships, round_number)
 
-	if not player_alive and not enemy_alive:
-		_end_game("MUTUAL DESTRUCTION", Color.WHITE)
-	elif not player_alive:
-		_end_game("SQUADRON LOST", Color(1.0, 0.2, 0.2, 1.0))
-	elif not enemy_alive:
-		_end_game("ENEMIES DESTROYED", Color(0.2, 1.0, 0.2, 1.0))
-	else:
-		begin_round()
+	match result:
+		"WIN":
+			_end_game("OBJECTIVE COMPLETE", Color(0.2, 1.0, 0.2, 1.0))
+		"LOSE":
+			_end_game("SQUADRON LOST", Color(1.0, 0.2, 0.2, 1.0))
+		"MUTUAL":
+			_end_game("MUTUAL DESTRUCTION", Color.WHITE)
+		_:
+			begin_round()
 
 
 func _process_ion(s: Ship) -> void:

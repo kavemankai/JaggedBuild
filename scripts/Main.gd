@@ -5,6 +5,7 @@ const GHOST_SCENE: PackedScene = preload("res://scenes/GhostShip.tscn")
 const AI_TEXTURE: Texture2D = preload("res://assets/ships/ship_ai.png")
 const ShipDials := preload("res://scripts/ShipDials.gd")
 const ShipClasses := preload("res://scripts/ShipClasses.gd")
+const Objective := preload("res://scripts/Objective.gd")
 
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var wing_ship: Ship = $Ships/WingShip
@@ -18,7 +19,11 @@ var _game_over: bool = false
 var _ships: Array = []
 var _player_ships: Array = []
 var _enemy_ships: Array = []
+var _protected_ship: Ship = null
 var _ghosts: Dictionary = {}
+var _objective: Objective = null
+
+const TRANSPORT_SLOT: Array = [Vector2(800, 160), PI]
 
 const PLAYER_SLOTS: Array = [
 	[Vector2(800, 650), 0.0],
@@ -37,13 +42,29 @@ const GHOST_BODY_ALPHAS: Array = [0.45, 0.4, 0.35]
 
 func _ready() -> void:
 	var mission: Dictionary
+	var enemy_specs: Array
+	_objective = Objective.new()
 	if CampaignManager.skirmish_mode:
-		mission = {"name": "SKIRMISH", "capital": false, "enemies": CampaignManager.skirmish_enemies}
+		mission = {"name": "SKIRMISH", "enemies": CampaignManager.skirmish_enemies}
+		enemy_specs = CampaignManager.skirmish_enemies
+		# default DESTROY_ALL
 	else:
 		mission = CampaignManager.current_mission()
+		enemy_specs = CampaignManager.current_enemies()
+		_objective.configure(mission.get("objective", {}))
+
 	_player_ships = _deploy_player_team()
-	_enemy_ships = _deploy_enemies(mission)
+	_enemy_ships = _deploy_enemies(enemy_specs)
+
+	# Protected transport (PROTECT missions): a friendly non-controlled ship to defend.
+	var protected_spec: Dictionary = mission.get("protected", {})
+	if not protected_spec.is_empty():
+		_protected_ship = _deploy_transport(protected_spec)
+		_objective.protected_ship = _protected_ship
+
 	_ships = _player_ships + _enemy_ships
+	if _protected_ship != null:
+		_ships.append(_protected_ship)
 
 	_build_ghosts()
 
@@ -54,8 +75,10 @@ func _ready() -> void:
 	var hud_ships: Array = _ships.filter(func(s): return (s as Ship).is_targetable)
 	hud.setup_ships(hud_ships)
 	hud.set_mission_label(mission.get("name", ""))
+	hud.set_objective(_objective)
 
 	RoundManager.register_ships(_ships)
+	RoundManager.set_objective(_objective)
 	RoundManager.planning_phase_started.connect(_on_planning_started)
 	RoundManager.resolution_phase_started.connect(_on_resolution_started)
 	RoundManager.game_ended.connect(_on_game_ended)
@@ -63,7 +86,7 @@ func _ready() -> void:
 
 
 func _deploy_player_team() -> Array:
-	var pilots: Array = CampaignManager.deployable_pilots()
+	var pilots: Array = CampaignManager.pilots_for_deployment()
 	var slots: Array = [player_ship, wing_ship]
 	var deployed: Array = []
 
@@ -92,8 +115,7 @@ func _deploy_player_team() -> Array:
 	return deployed
 
 
-func _deploy_enemies(mission: Dictionary) -> Array:
-	var specs: Array = mission.get("enemies", [])
+func _deploy_enemies(specs: Array) -> Array:
 	var enemies: Array = []
 	var capital_body: Ship = null
 	var slot_i: int = 0
@@ -142,6 +164,22 @@ func _deploy_enemies(mission: Dictionary) -> Array:
 
 		enemies.append(ship)
 	return enemies
+
+
+# A friendly, non-controlled transport the player must keep alive (PROTECT missions).
+# It sits at the top of the arena and never manoeuvres; enemies converge on it.
+func _deploy_transport(spec: Dictionary) -> Ship:
+	var ship: Ship = SHIP_SCENE.instantiate()
+	ship.ship_texture = AI_TEXTURE
+	ship.team = "PLAYER"
+	ships_root.add_child(ship)
+	ship.speed_options = []
+	ship.bearing_options = []
+	_apply_spec(ship, spec)   # keeps the spec's tanky transport stats (no class override)
+	ship.dial_data = null     # never planned, never manoeuvres
+	ship.position = TRANSPORT_SLOT[0]
+	ship.rotation = TRANSPORT_SLOT[1]
+	return ship
 
 
 func _build_ghosts() -> void:
