@@ -423,6 +423,7 @@ func record_battle(player_ships: Array, won: bool) -> void:
 	var is_tutorial: bool = current_mission().get("tutorial", false)
 	var deployed: Dictionary = {}
 	var losses: int = 0
+	var kia_names: Array = []
 
 	for s in player_ships:
 		var ship: Ship = s as Ship
@@ -455,9 +456,21 @@ func record_battle(player_ships: Array, won: bool) -> void:
 
 		if ship.is_destroyed:
 			losses += 1
+			# Capture true-KIA callsigns (pre-rename) for the survivor reaction.
+			var kia_now: bool = not won and not entry.get("commander", false) and not entry.get("is_drone", false)
+			var lost_name: String = entry.get("name", "?")
 			line += _handle_casualty(entry, won)
+			if kia_now:
+				kia_names.append(lost_name)
 
 		last_summary.append(line)
+
+	# A survivor reacts to the dead (lines attach to whoever's still flying and human).
+	if not kia_names.is_empty():
+		var reaction: String = _survivor_reaction(kia_names)
+		if reaction != "":
+			last_summary.append("")
+			last_summary.append(reaction)
 
 	# Pilots who sat out recover from injury.
 	for entry in roster:
@@ -478,6 +491,26 @@ func record_battle(player_ships: Array, won: bool) -> void:
 			_append_ending()
 
 	save()
+
+
+# A living, human squadmate (not one of the dead) reacts to the losses. If only drones
+# and the dead remain, the loss passes in silence — which is its own kind of line.
+func _survivor_reaction(kia_names: Array) -> String:
+	var speaker: String = ""
+	for callsign in _living_named_sorted():
+		if not kia_names.has(callsign):
+			speaker = callsign
+			break
+	var dead: String = kia_names[0]
+	if speaker == "":
+		return "No one answers on the channel. Just the drones, holding formation."
+	var lines: Array = [
+		"%s: \"%s is gone. Mark it. Keep flying.\"" % [speaker, dead],
+		"%s: \"...That was %s. We don't have time to stop.\"" % [speaker, dead],
+		"%s: \"%s. Another empty seat. Another ghost in the formation.\"" % [speaker, dead],
+		"%s: \"We lost %s. The Engine doesn't care. Form up.\"" % [speaker, dead],
+	]
+	return lines[randi() % lines.size()]
 
 
 # Returns the result-line suffix and mutates the entry (injured / drone conversion).
