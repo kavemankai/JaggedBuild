@@ -81,6 +81,10 @@ func _highest_threat(ai_ship: Ship, ships: Array) -> Ship:
 			continue
 		var d: float = ai_ship.global_position.distance_to(t.global_position)
 		var score: float = float(t.attack) * 100.0 - d
+		# Escort/objective hulls are the prize — enemy AI goes for the convoy, which is
+		# what gives escort missions teeth.
+		if t.is_objective:
+			score += 400.0
 		if score > best_score:
 			best_score = score
 			best = t

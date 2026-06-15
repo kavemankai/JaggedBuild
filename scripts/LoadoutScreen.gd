@@ -311,6 +311,9 @@ func _update_stats(slot: int) -> void:
 		passive if passive != "" else "—",
 		active if active != "" else "—",
 	]
+	# Large hulls: surface the fixed rear turret as a non-editable second slot.
+	if cls.has_rear_turret:
+		lbl.text += "\nLARGE — REAR: Turret (fixed)  +%d° arc" % int(cls.turret_arc_degrees)
 
 
 func _weapon_display(weapon_id: String) -> String:
