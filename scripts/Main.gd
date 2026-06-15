@@ -85,6 +85,8 @@ func _ready() -> void:
 	_build_ghosts()
 
 	planning_strip.setup(_player_ships, _ghosts)
+	planning_strip.set_camera(_camera)
+	_build_frame_button()
 	planning_strip.all_confirmed.connect(_on_all_confirmed)
 
 	# HUD lists combatants only — the capital hull is non-targetable scenery.
@@ -103,6 +105,30 @@ func _ready() -> void:
 
 # Build spawn positions for this battle, scaled to the arena. Mission data may override
 # with explicit "player_spawns"/"enemy_spawns"/"transport_spawn" ([x, y, rot] entries).
+# A screen-space "FRAME ALL" button (top-centre) that fits every living ship in view —
+# offered, never imposed (the camera stays free otherwise).
+func _build_frame_button() -> void:
+	var btn := Button.new()
+	btn.text = "FRAME ALL"
+	btn.add_theme_font_size_override("font_size", 13)
+	btn.position = Vector2(720, 12)
+	btn.custom_minimum_size = Vector2(160, 30)
+	btn.focus_mode = Control.FOCUS_NONE   # don't steal keyboard focus
+	btn.pressed.connect(_on_frame_all)
+	$UI.add_child(btn)
+
+
+func _on_frame_all() -> void:
+	if _camera == null:
+		return
+	var pts: Array = []
+	for s in _ships:
+		var sh: Ship = s as Ship
+		if not sh.is_destroyed:
+			pts.append(sh.global_position)
+	_camera.frame_all(pts)
+
+
 func _make_spawns(mission: Dictionary, enemy_specs: Array) -> void:
 	var arena: Vector2 = ManeuverSystem.arena_size
 	var player_count: int = mini(2, CampaignManager.pilots_for_deployment().size())

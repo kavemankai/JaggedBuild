@@ -11,6 +11,11 @@ const SHIP_CARD: PackedScene = preload("res://scenes/ShipCard.tscn")
 var _ships: Array = []          # friendly ships
 var _ghosts: Dictionary = {}    # ship -> GhostShip
 var _cards: Array = []
+var _camera: Node = null        # CameraRig; clicking a card focuses it on the ship
+
+
+func set_camera(cam: Node) -> void:
+	_camera = cam
 
 
 func setup(friendly_ships: Array, ghosts: Dictionary) -> void:
@@ -51,6 +56,10 @@ func reset() -> void:
 func _open_selector(ship: Ship) -> void:
 	if ship.is_destroyed:
 		return
+	# Focus the camera on this ship so it's never lost on a large map. Recenter only
+	# (don't override the player's chosen zoom).
+	if _camera != null:
+		_camera.focus_on(ship.global_position, false)
 	_selector.open_for(ship, _ghosts.get(ship))
 	_refresh_ghosts(ship)
 	_position_selector_over(ship)
