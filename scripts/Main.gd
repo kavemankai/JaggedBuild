@@ -7,6 +7,7 @@ const ShipDials := preload("res://scripts/ShipDials.gd")
 const ShipClasses := preload("res://scripts/ShipClasses.gd")
 const Objective := preload("res://scripts/Objective.gd")
 const CameraRig := preload("res://scripts/CameraRig.gd")
+const Minimap := preload("res://scripts/Minimap.gd")
 
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var wing_ship: Ship = $Ships/WingShip
@@ -87,6 +88,7 @@ func _ready() -> void:
 	planning_strip.setup(_player_ships, _ghosts)
 	planning_strip.set_camera(_camera)
 	_build_frame_button()
+	_build_minimap()
 	planning_strip.all_confirmed.connect(_on_all_confirmed)
 
 	# HUD lists combatants only — the capital hull is non-targetable scenery.
@@ -127,6 +129,15 @@ func _on_frame_all() -> void:
 		if not sh.is_destroyed:
 			pts.append(sh.global_position)
 	_camera.frame_all(pts)
+
+
+# Corner minimap (bottom-right, above the planning strip). Screen-space on $UI.
+func _build_minimap() -> void:
+	var map := Minimap.new()
+	map.size = Vector2(260, 150)
+	map.position = Vector2(1600 - 260 - 16, 900 - 150 - 212)
+	$UI.add_child(map)
+	map.setup(_ships, _camera, _objective, ManeuverSystem.arena_size)
 
 
 func _make_spawns(mission: Dictionary, enemy_specs: Array) -> void:
