@@ -25,21 +25,18 @@ var _ghosts: Dictionary = {}
 var _objective: Objective = null
 var _camera: Camera2D = null
 
-const TRANSPORT_SLOT: Array = [Vector2(800, 160), PI]
+const SPAWN_SPACING: float = 180.0      # horizontal gap between ships in a spawn line
 
-const PLAYER_SLOTS: Array = [
-	[Vector2(800, 650), 0.0],
-	[Vector2(960, 670), 0.0],
-]
-const ENEMY_SLOTS: Array = [
-	[Vector2(800, 250), PI],
-	[Vector2(620, 280), PI],
-	[Vector2(980, 280), PI],
-]
+# Spawn positions are computed per-battle, scaled to the live arena (or from mission
+# overrides). Players spawn near the bottom facing up, enemies near the top facing down,
+# the transport at top-centre. Each entry is [Vector2 pos, float rotation].
+var _player_spawns: Array = []
+var _enemy_spawns: Array = []
+var _transport_spawn: Array = [Vector2(800, 160), PI]
 
-# Per-ship ghost opacities so overlapping friendly paths stay distinguishable.
-const GHOST_ARC_ALPHAS: Array = [0.9, 0.6, 0.45]
-const GHOST_BODY_ALPHAS: Array = [0.45, 0.4, 0.35]
+# Per-ship ghost opacities so overlapping friendly paths stay distinguishable (up to 6).
+const GHOST_ARC_ALPHAS: Array = [0.9, 0.6, 0.45, 0.4, 0.35, 0.3]
+const GHOST_BODY_ALPHAS: Array = [0.45, 0.4, 0.35, 0.32, 0.3, 0.28]
 
 
 func _ready() -> void:
@@ -64,6 +61,8 @@ func _ready() -> void:
 	# Background spans the whole arena (not just the legacy 1600x900 screen).
 	var arena_rect: ColorRect = $Arena
 	arena_rect.size = ManeuverSystem.arena_size
+
+	_make_spawns(mission, enemy_specs)
 
 	# World camera — pan/zoom over the (possibly larger-than-screen) arena.
 	_camera = CameraRig.new()
@@ -102,6 +101,48 @@ func _ready() -> void:
 	RoundManager.begin_round()
 
 
+# Build spawn positions for this battle, scaled to the arena. Mission data may override
+# with explicit "player_spawns"/"enemy_spawns"/"transport_spawn" ([x, y, rot] entries).
+func _make_spawns(mission: Dictionary, enemy_specs: Array) -> void:
+	var arena: Vector2 = ManeuverSystem.arena_size
+	var player_count: int = mini(2, CampaignManager.pilots_for_deployment().size())
+	var enemy_count: int = 0
+	for spec in enemy_specs:
+		if not spec.get("is_capital_body", false) and not spec.get("is_turret", false):
+			enemy_count += 1
+
+	_player_spawns = _override_spawns(mission.get("player_spawns", []))
+	if _player_spawns.is_empty():
+		_player_spawns = _line_spawns(maxi(1, player_count), arena.y * 0.80, 0.0, arena)
+
+	_enemy_spawns = _override_spawns(mission.get("enemy_spawns", []))
+	if _enemy_spawns.is_empty():
+		_enemy_spawns = _line_spawns(maxi(1, enemy_count), arena.y * 0.22, PI, arena)
+
+	var t: Array = _override_spawns(mission.get("transport_spawn", []))
+	_transport_spawn = t[0] if not t.is_empty() else [Vector2(arena.x * 0.5, arena.y * 0.12), PI]
+
+
+# A centred horizontal line of `count` spawns at world-y `y`, facing `rot`.
+func _line_spawns(count: int, y: float, rot: float, arena: Vector2) -> Array:
+	var out: Array = []
+	var total: float = float(count - 1) * SPAWN_SPACING
+	var start_x: float = arena.x * 0.5 - total * 0.5
+	for i in range(count):
+		var x: float = clampf(start_x + float(i) * SPAWN_SPACING, 120.0, arena.x - 120.0)
+		out.append([Vector2(x, y), rot])
+	return out
+
+
+# Convert mission-data [x, y, rot] arrays into [Vector2, rot] spawn entries.
+func _override_spawns(raw: Array) -> Array:
+	var out: Array = []
+	for e in raw:
+		var arr: Array = e as Array
+		out.append([Vector2(float(arr[0]), float(arr[1])), float(arr[2]) if arr.size() > 2 else 0.0])
+	return out
+
+
 func _deploy_player_team() -> Array:
 	var pilots: Array = CampaignManager.pilots_for_deployment()
 	var slots: Array = [player_ship, wing_ship]
@@ -123,8 +164,9 @@ func _deploy_player_team() -> Array:
 			ship.firing_arc_degrees = cls.firing_arc_degrees
 			ship.rebuild_arc()
 			ship.apply_setup_passives()
-			ship.position = PLAYER_SLOTS[i][0]
-			ship.rotation = PLAYER_SLOTS[i][1]
+			var spawn: Array = _player_spawns[i] if i < _player_spawns.size() else [Vector2(800, 650), 0.0]
+			ship.position = spawn[0]
+			ship.rotation = spawn[1]
 			deployed.append(ship)
 		else:
 			ship.queue_free()
@@ -165,7 +207,7 @@ func _deploy_enemies(specs: Array) -> Array:
 			if capital_body != null:
 				ship.position = Vector2(float(spec.get("x_offset", 0.0)), 40.0)
 			else:
-				ship.position = Vector2(800.0 + float(spec.get("x_offset", 0.0)), 220.0)
+				ship.position = Vector2(ManeuverSystem.arena_size.x * 0.5 + float(spec.get("x_offset", 0.0)), 220.0)
 			ship.rotation = PI
 
 		else:
@@ -174,7 +216,7 @@ func _deploy_enemies(specs: Array) -> Array:
 			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
 			_apply_spec(ship, spec)
 			ship.dial_data = _dial_for_class(spec.get("ship_class", "enemy_fighter"))
-			var slot: Array = ENEMY_SLOTS[slot_i % ENEMY_SLOTS.size()]
+			var slot: Array = _enemy_spawns[slot_i % _enemy_spawns.size()] if not _enemy_spawns.is_empty() else [Vector2(800, 250), PI]
 			slot_i += 1
 			ship.position = slot[0]
 			ship.rotation = slot[1]
@@ -194,8 +236,8 @@ func _deploy_transport(spec: Dictionary) -> Ship:
 	ship.bearing_options = []
 	_apply_spec(ship, spec)   # keeps the spec's tanky transport stats (no class override)
 	ship.dial_data = null     # never planned, never manoeuvres
-	ship.position = TRANSPORT_SLOT[0]
-	ship.rotation = TRANSPORT_SLOT[1]
+	ship.position = _transport_spawn[0]
+	ship.rotation = _transport_spawn[1]
 	return ship
 
 
