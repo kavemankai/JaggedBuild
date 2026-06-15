@@ -519,6 +519,10 @@ Scores all valid maneuver options (from dial if available, else bearing_options 
 | 25 | Minimap (`Minimap`): ship dots, capital bar, viewport rect, click/drag-to-jump | ✅ |
 | 26 | Per-edge WALL/BLOCK/ESCAPE; ESCAPE = survive/flee; telegraphed; M3/M7 escape | ✅ |
 | 27 | Fleet 3-6/side: dynamic player ships, squad_size, N-slot loadout, skirmish 1-4 vs 2-6 | ✅ |
+| 28 | Size class SMALL/LARGE: per-ship collision_radius + sprite_scale, lumbering large dial, Hauler class | ✅ |
+| 29 | Dual-arc combat: forward weapon + rear TURRET (separate cooldown, own arc), rear cone render | ✅ |
+| 30 | Three Large instances: Hauler (player), Bulk Cruiser (enemy, M10), Convoy Hull (is_objective); objective-destroyed = mission fail | ✅ |
+| 31 | Hauler in loadout (rear-turret preview), AI weights is_objective targets +400 | ✅ |
 
 ---
 
@@ -552,6 +556,34 @@ is also per-battle. All UI stays on CanvasLayers (camera-independent).
 **Playtest items (the godot MCP can't send mouse/keyboard input — these were boot-verified
 only):** camera pan/zoom feel, minimap click-to-jump, focus jumps, big-map range feel (doc
 §12 — range bands tuned for 1600x900), 6v6 readability + ghost clutter (doc §6.5).
+
+---
+
+## Large Ship Class & Escort (Gates 28-31)
+
+A second size tier (Large) below capital, one hull → three data instances.
+
+- **Size class** on `ShipClassData`: `size_class`, `collision_radius` (LARGE 75), `sprite_scale`
+  (LARGE 5), `has_rear_turret`, `is_objective`, `objective_armed`. `CollisionHandler` sums
+  each ship's own radius. `Ship.set_size()` applies scale+footprint; `Ship.collision_radius`.
+- **Lumbering dial** (`ShipDials.large`): STRAIGHT + gentle banks only, no turns, no K-Turn,
+  speed cap 3 (selector reads dial speeds, so the cap is automatic).
+- **Dual arcs**: forward weapon + fixed rear TURRET (`ManeuverSystem.is_in_rear_firing_arc`,
+  `CombatSystem.pick_rear_target`/`_build_rear_shots`). Rear turret has its own `rear_cooldown`
+  so it doesn't clobber a forward Heavy's timer. Both shots go through the simultaneous
+  pipeline (a second engagement, `is_rear`). `Ship.setup_rear_arc`/`show_rear_arc` draw a
+  distinct backward cone.
+- **Three instances**: `ShipClasses._hauler` (player, def1/shd4/hull6, fwd Heavy/Cannons/Ion +
+  rear turret); `CampaignManager._bulk_cruiser` enemy (`enemy_large`→large dial, in M10);
+  `_transport` is now a Large `is_objective` Convoy Hull. `Objective.evaluate` returns LOSE if
+  any `is_objective` hull is destroyed. AI (`_highest_threat`) weights objective hulls +400.
+- Convoy is **stationary** in v1 (the doc's "move toward exit" autopilot deferred — avoids a
+  convoy flying into a WALL edge unverified).
+
+**Playtest items (boot-verified only — COMBAT phase is unreachable via the godot MCP):**
+dual-arc front+rear simultaneous fire, Bulk Cruiser no-turn AI behaviour, escort-AI going for
+the convoy, Large sprite scale (§6 — drop 5→4 if `ship_large_hull.png` pixelates; currently
+reuses the existing player/AI sprite since no large sprite asset was added).
 
 ---
 
