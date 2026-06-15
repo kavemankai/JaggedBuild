@@ -512,6 +512,46 @@ Scores all valid maneuver options (from dial if available, else bearing_options 
 | 19 | ShipClasses factory; LoadoutScreen (class/weapon/upgrade per slot); class stats override spec; MainMenu routes through LoadoutScreen | ✅ |
 | 20 | SkirmishSetup (random + manual enemy compose); skirmish_mode in CampaignManager; W/L record persisted; no XP/injury in skirmish | ✅ |
 | Campaign | THE LONG RETREAT: Objective system, Distance pursuit, AI-drone hollowing, 3 tutorials + 12 missions, role-based comms, 3 endings | ✅ |
+| 21 | Arena size as data — `ManeuverSystem.arena_size`, set per-battle by Main | ✅ |
+| 22 | Camera2D (`CameraRig`): drag-pan, scroll zoom-to-cursor, arena clamp, focus/frame | ✅ |
+| 23 | Variable map size + arena-scaled spawns (mission override supported) | ✅ |
+| 24 | Focus-ship on card click + FRAME ALL button (camera/planning integration) | ✅ |
+| 25 | Minimap (`Minimap`): ship dots, capital bar, viewport rect, click/drag-to-jump | ✅ |
+| 26 | Per-edge WALL/BLOCK/ESCAPE; ESCAPE = survive/flee; telegraphed; M3/M7 escape | ✅ |
+| 27 | Fleet 3-6/side: dynamic player ships, squad_size, N-slot loadout, skirmish 1-4 vs 2-6 | ✅ |
+
+---
+
+## Camera / Scale / Fleet (Gates 21-27)
+
+World space ≠ screen space. `ManeuverSystem.arena_size` (Vector2) is the single source of
+truth for world bounds, set per-battle by Main from mission `arena_width`/`arena_height`
+(default 1600x900). `ManeuverSystem.edges` ({top/bottom/left/right} → WALL|BLOCK|ESCAPE)
+is also per-battle. All UI stays on CanvasLayers (camera-independent).
+
+- **CameraRig** (`scripts/CameraRig.gd`, Camera2D): left/middle-drag pan, scroll
+  zoom-to-cursor (0.4–1.5), clamp to arena+200px margin, `focus_on()` / `frame_all()`.
+  Input in `_unhandled_input` so UI consumes its own clicks (free "empty-space" pan).
+- **Spawns** scale to the arena (`_line_spawns`): players bottom line (face up), enemies
+  top line (face down), transport top-centre. Mission may override with
+  `player_spawns`/`enemy_spawns`/`transport_spawn` ([x,y,rot]).
+- **Focus-ship**: clicking a ShipCard recenters the camera on that ship (zoom preserved);
+  top-centre FRAME ALL fits every living ship.
+- **Minimap** (`scripts/Minimap.gd`, on $UI, bottom-right): world→map dots (cyan player /
+  magenta enemy / dim destroyed), capital bar, live viewport rect, REACH line; click/drag
+  to jump. Redraws on phase signals + camera movement.
+- **Edges**: at EVALUATION a ship past a bound is handled by that edge — WALL destroys,
+  BLOCK clamps back, ESCAPE removes it (player SURVIVES via `Ship.escape_ship()`, enemy
+  flees). Telegraphed in `Main._draw` (ESCAPE green glow, WALL red, BLOCK grey). REACH_EDGE
+  wins on the `escaped` flag or the edge_y line.
+- **Fleet 3-6/side**: player ships spawned dynamically (1 per pilot, up to `MAX_SQUAD`=6);
+  `CampaignManager.squad_size` (campaign mission `squad_size`, default 2; skirmish 1-4)
+  drives `pilots_for_deployment`. LoadoutScreen renders N slots with N-way no-dup. Skirmish
+  fields 2-6 enemies.
+
+**Playtest items (the godot MCP can't send mouse/keyboard input — these were boot-verified
+only):** camera pan/zoom feel, minimap click-to-jump, focus jumps, big-map range feel (doc
+§12 — range bands tuned for 1600x900), 6v6 readability + ghost clutter (doc §6.5).
 
 ---
 
