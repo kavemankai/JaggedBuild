@@ -6,6 +6,7 @@ const AI_TEXTURE: Texture2D = preload("res://assets/ships/ship_ai.png")
 const ShipDials := preload("res://scripts/ShipDials.gd")
 const ShipClasses := preload("res://scripts/ShipClasses.gd")
 const Objective := preload("res://scripts/Objective.gd")
+const CameraRig := preload("res://scripts/CameraRig.gd")
 
 @onready var player_ship: Ship = $Ships/PlayerShip
 @onready var wing_ship: Ship = $Ships/WingShip
@@ -22,6 +23,7 @@ var _enemy_ships: Array = []
 var _protected_ship: Ship = null
 var _ghosts: Dictionary = {}
 var _objective: Objective = null
+var _camera: Camera2D = null
 
 const TRANSPORT_SLOT: Array = [Vector2(800, 160), PI]
 
@@ -58,6 +60,15 @@ func _ready() -> void:
 	var aw: float = float(mission.get("arena_width", ManeuverSystem.DEFAULT_ARENA_WIDTH))
 	var ah: float = float(mission.get("arena_height", ManeuverSystem.DEFAULT_ARENA_HEIGHT))
 	ManeuverSystem.set_arena(Vector2(aw, ah))
+
+	# Background spans the whole arena (not just the legacy 1600x900 screen).
+	var arena_rect: ColorRect = $Arena
+	arena_rect.size = ManeuverSystem.arena_size
+
+	# World camera — pan/zoom over the (possibly larger-than-screen) arena.
+	_camera = CameraRig.new()
+	add_child(_camera)
+	_camera.setup(ManeuverSystem.arena_size)
 
 	_player_ships = _deploy_player_team()
 	_enemy_ships = _deploy_enemies(enemy_specs)
