@@ -97,14 +97,18 @@ func _evaluate() -> void:
 	current_phase = Phase.EVALUATION
 	evaluation_phase_started.emit()
 
-	var reach_edge: bool = objective != null and objective.type == Objective.Type.REACH_EDGE
 	for ship in ships:
 		var s0: Ship = ship as Ship
-		if s0.is_targetable and ManeuverSystem.is_out_of_bounds(s0.global_position):
-			# In a REACH objective, a friendly crossing the top edge has escaped, not died.
-			if reach_edge and s0.team == "PLAYER" and s0.global_position.y <= objective.edge_y:
-				continue
-			s0.is_destroyed = true
+		if not s0.is_targetable or not ManeuverSystem.is_out_of_bounds(s0.global_position):
+			continue
+		match ManeuverSystem.edge_mode(s0.global_position):
+			"ESCAPE":
+				# Player escapes (survives); enemy disengages (no kill). Either way: out of play.
+				s0.escape_ship()
+			"BLOCK":
+				s0.global_position = ManeuverSystem.clamp_to_arena(s0.global_position)
+			_:  # WALL
+				s0.is_destroyed = true
 
 	await get_tree().create_timer(0.3).timeout
 

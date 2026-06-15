@@ -67,6 +67,21 @@ func has_maneuver() -> bool:
 
 
 func refresh() -> void:
+	if ship.escaped:
+		_name_label.text = ship.get_pilot_name() + "  [ESCAPED]"
+		_name_label.add_theme_color_override("font_color", Color(0.4, 0.85, 0.55))
+		_maneuver_label.text = "— JUMPED OUT —"
+		_maneuver_label.add_theme_color_override("font_color", Color(0.4, 0.85, 0.55))
+		_change_btn.disabled = true
+		if _stress_tween != null:
+			_stress_tween.kill()
+			_stress_tween = null
+		modulate = Color(0.55, 0.8, 0.6, 0.9)
+		for btn in _action_row.get_children():
+			if btn is Button:
+				btn.disabled = true
+		return
+
 	if ship.is_destroyed:
 		_name_label.text = ship.get_pilot_name() + "  [DOWN]"
 		_name_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))

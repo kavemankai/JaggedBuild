@@ -58,6 +58,7 @@ func _ready() -> void:
 	var aw: float = float(mission.get("arena_width", ManeuverSystem.DEFAULT_ARENA_WIDTH))
 	var ah: float = float(mission.get("arena_height", ManeuverSystem.DEFAULT_ARENA_HEIGHT))
 	ManeuverSystem.set_arena(Vector2(aw, ah))
+	ManeuverSystem.set_edges(mission.get("edges", {}))
 
 	# Background spans the whole arena (not just the legacy 1600x900 screen).
 	var arena_rect: ColorRect = $Arena
@@ -366,6 +367,7 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
+	_draw_edges()
 	for i in range(_ships.size()):
 		for j in range(i + 1, _ships.size()):
 			var a: Ship = _ships[i] as Ship
@@ -374,6 +376,29 @@ func _draw() -> void:
 				continue
 			if a.global_position.distance_to(b.global_position) <= CombatSystem.FORMATION_RANGE:
 				draw_line(a.global_position, b.global_position, Color(0.3, 0.8, 1.0, 0.22), 2.0)
+
+
+# Telegraph edge behaviour so the player never learns it by dying: ESCAPE glows green
+# (the jump point / safety), WALL reads as a red hazard border, BLOCK is a grey wall.
+func _draw_edges() -> void:
+	var a: Vector2 = ManeuverSystem.arena_size
+	var corners := {
+		"top": [Vector2(0, 0), Vector2(a.x, 0)],
+		"bottom": [Vector2(0, a.y), Vector2(a.x, a.y)],
+		"left": [Vector2(0, 0), Vector2(0, a.y)],
+		"right": [Vector2(a.x, 0), Vector2(a.x, a.y)],
+	}
+	for key in corners.keys():
+		var mode: String = ManeuverSystem.edges.get(key, "WALL")
+		var pts: Array = corners[key]
+		match mode:
+			"ESCAPE":
+				draw_line(pts[0], pts[1], Color(0.3, 1.0, 0.5, 0.9), 6.0)
+				draw_line(pts[0], pts[1], Color(0.5, 1.0, 0.7, 0.35), 16.0)
+			"BLOCK":
+				draw_line(pts[0], pts[1], Color(0.55, 0.55, 0.6, 0.8), 5.0)
+			_:  # WALL
+				draw_line(pts[0], pts[1], Color(0.8, 0.25, 0.2, 0.5), 3.0)
 
 
 func _on_resolution_started() -> void:

@@ -199,6 +199,7 @@ func get_missions() -> Array:
 		{
 			"id": "M3", "name": "THE NET", "act": 1,
 			"objective": {"type": "REACH_EDGE", "edge_y": 120.0}, "engine": false,
+			"edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("BANDIT", 3, "", "CANNONS", 2, 2, 2, 3, [0.4, 0.3, 0.45]),
 				_enemy("BANDIT", 3, "", "BURST", 2, 2, 2, 3, [0.4, 0.3, 0.45]),
@@ -243,6 +244,7 @@ func get_missions() -> Array:
 		{
 			"id": "M7", "name": "THE GAUNTLET", "act": 2,
 			"objective": {"type": "REACH_EDGE", "edge_y": 120.0}, "engine": false,
+			"edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("VIPER", 4, "MARKSMAN", "ION", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),
 				_enemy("VIPER", 4, "EVASIVE", "ION", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),

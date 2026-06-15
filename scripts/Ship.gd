@@ -46,6 +46,7 @@ var kills: int = 0
 var missiles_ammo: int = 2
 var upgrade: String = ""
 var veteran_stress_blocked: bool = false
+var escaped: bool = false
 var _arc_pts: Array = []
 
 const CAPITAL_DRIFT_SPEED: float = 35.0
@@ -256,6 +257,18 @@ func destroy_ship() -> void:
 	var tween := create_tween()
 	tween.tween_property(_body, "modulate", Color(1.0, 0.4, 0.0, 0.0), 0.35)
 	tween.parallel().tween_property(_body, "scale", Vector2(6.0, 6.0), 0.35)
+
+
+# Crossed an ESCAPE edge: jumped out of the battle. Survived, not destroyed, no longer
+# a combatant — fades out with a brief jump flare.
+func escape_ship() -> void:
+	escaped = true
+	is_targetable = false
+	_firing_arc.visible = false
+	_hit_label.visible = false
+	var tween := create_tween()
+	tween.tween_property(_body, "modulate", Color(0.6, 1.0, 0.8, 0.0), 0.35)
+	tween.parallel().tween_property(_body, "scale", Vector2(0.4, 0.4), 0.35)
 
 
 func flash_shield() -> void:

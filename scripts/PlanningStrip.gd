@@ -54,7 +54,7 @@ func reset() -> void:
 
 
 func _open_selector(ship: Ship) -> void:
-	if ship.is_destroyed:
+	if ship.is_destroyed or ship.escaped:
 		return
 	# Focus the camera on this ship so it's never lost on a large map. Recenter only
 	# (don't override the player's chosen zoom).
@@ -105,7 +105,7 @@ func refresh() -> void:
 	var missing: int = 0
 	for s in _ships:
 		var ship: Ship = s as Ship
-		if not ship.is_destroyed and ship.selected_maneuver == null:
+		if not ship.is_destroyed and not ship.escaped and ship.selected_maneuver == null:
 			missing += 1
 
 	_confirm_btn.disabled = missing > 0

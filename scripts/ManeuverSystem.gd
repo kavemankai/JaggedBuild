@@ -9,6 +9,10 @@ const DEFAULT_ARENA_WIDTH: float = 1600.0
 const DEFAULT_ARENA_HEIGHT: float = 900.0
 var arena_size: Vector2 = Vector2(DEFAULT_ARENA_WIDTH, DEFAULT_ARENA_HEIGHT)
 
+# Per-edge behaviour: "WALL" (destroy), "BLOCK" (clamp), "ESCAPE" (exit battle).
+# Set per-battle by Main from mission data; defaults to all WALL (legacy box).
+var edges: Dictionary = {"top": "WALL", "bottom": "WALL", "left": "WALL", "right": "WALL"}
+
 const MAX_RANGE: float = 500.0
 const RANGE_CLOSE: float = 167.0
 const RANGE_MEDIUM: float = 333.0
@@ -106,8 +110,39 @@ func set_arena(size: Vector2) -> void:
 	arena_size = size
 
 
+# Reset to all-WALL, then apply mission overrides (per-battle, so no leak).
+func set_edges(overrides: Dictionary) -> void:
+	edges = {"top": "WALL", "bottom": "WALL", "left": "WALL", "right": "WALL"}
+	for key in overrides.keys():
+		edges[key] = overrides[key]
+
+
 func is_out_of_bounds(pos: Vector2) -> bool:
 	return pos.x < 0.0 or pos.x > arena_size.x or pos.y < 0.0 or pos.y > arena_size.y
+
+
+# Behaviour of the edge(s) a position is beyond: ESCAPE > WALL > BLOCK > "IN".
+func edge_mode(pos: Vector2) -> String:
+	var modes: Array = []
+	if pos.y < 0.0:
+		modes.append(edges.get("top", "WALL"))
+	if pos.y > arena_size.y:
+		modes.append(edges.get("bottom", "WALL"))
+	if pos.x < 0.0:
+		modes.append(edges.get("left", "WALL"))
+	if pos.x > arena_size.x:
+		modes.append(edges.get("right", "WALL"))
+	if modes.is_empty():
+		return "IN"
+	if "ESCAPE" in modes:
+		return "ESCAPE"
+	if "WALL" in modes:
+		return "WALL"
+	return "BLOCK"
+
+
+func clamp_to_arena(pos: Vector2) -> Vector2:
+	return Vector2(clampf(pos.x, 0.0, arena_size.x), clampf(pos.y, 0.0, arena_size.y))
 
 
 func is_in_firing_arc(attacker: Ship, target: Ship) -> bool:

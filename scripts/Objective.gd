@@ -42,13 +42,16 @@ func evaluate(ships: Array, round_number: int) -> String:
 			return ""
 
 		Type.REACH_EDGE:
-			if not _combat_player_alive(ships):
-				return "LOSE"
+			# A player ship that escaped (crossed an ESCAPE edge) or crossed the edge_y
+			# line wins. Check WIN before LOSE — an escaped ship is no longer a combatant.
 			for s in ships:
 				var sh: Ship = s as Ship
-				if sh.team == "PLAYER" and sh.is_targetable and not sh.is_destroyed \
-						and sh != protected_ship and sh.global_position.y <= edge_y:
+				if sh.team != "PLAYER" or sh == protected_ship:
+					continue
+				if sh.escaped or (sh.is_targetable and not sh.is_destroyed and sh.global_position.y <= edge_y):
 					return "WIN"
+			if not _combat_player_alive(ships):
+				return "LOSE"
 			return ""
 
 		Type.PROTECT:
