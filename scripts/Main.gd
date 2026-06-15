@@ -52,6 +52,7 @@ func _ready() -> void:
 		mission = CampaignManager.current_mission()
 		enemy_specs = CampaignManager.current_enemies()
 		_objective.configure(mission.get("objective", {}))
+		CampaignManager.squad_size = int(mission.get("squad_size", 2))
 
 	# Arena dimensions are per-mission data (defaults to 1600x900). Set every battle so
 	# a large-map mission's size never leaks into the next.
@@ -183,31 +184,32 @@ func _override_spawns(raw: Array) -> Array:
 
 func _deploy_player_team() -> Array:
 	var pilots: Array = CampaignManager.pilots_for_deployment()
-	var slots: Array = [player_ship, wing_ship]
-	var deployed: Array = []
+	# Player ships are spawned dynamically (1 per pilot, up to 6) — the scene's two
+	# fixed placeholders are freed so squad size isn't capped at two.
+	player_ship.queue_free()
+	wing_ship.queue_free()
 
-	for i in range(slots.size()):
-		var ship: Ship = slots[i]
-		if i < pilots.size():
-			ship.team = "PLAYER"
-			ship.speed_options = [1, 2, 3, 4]
-			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
-			_apply_spec(ship, pilots[i], true)  # skip passives until after class stats
-			var cls = ShipClasses.for_id(pilots[i].get("ship_class", "fighter"))
-			ship.dial_data = cls.dial
-			ship.attack = cls.attack
-			ship.defence = cls.defence
-			ship.shields = cls.shields
-			ship.hull = cls.hull
-			ship.firing_arc_degrees = cls.firing_arc_degrees
-			ship.rebuild_arc()
-			ship.apply_setup_passives()
-			var spawn: Array = _player_spawns[i] if i < _player_spawns.size() else [Vector2(800, 650), 0.0]
-			ship.position = spawn[0]
-			ship.rotation = spawn[1]
-			deployed.append(ship)
-		else:
-			ship.queue_free()
+	var deployed: Array = []
+	for i in range(pilots.size()):
+		var ship: Ship = SHIP_SCENE.instantiate()   # default ship_player.png texture
+		ship.team = "PLAYER"
+		ships_root.add_child(ship)
+		ship.speed_options = [1, 2, 3, 4]
+		ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
+		_apply_spec(ship, pilots[i], true)  # skip passives until after class stats
+		var cls = ShipClasses.for_id(pilots[i].get("ship_class", "fighter"))
+		ship.dial_data = cls.dial
+		ship.attack = cls.attack
+		ship.defence = cls.defence
+		ship.shields = cls.shields
+		ship.hull = cls.hull
+		ship.firing_arc_degrees = cls.firing_arc_degrees
+		ship.rebuild_arc()
+		ship.apply_setup_passives()
+		var spawn: Array = _player_spawns[i] if i < _player_spawns.size() else [Vector2(800, 650), 0.0]
+		ship.position = spawn[0]
+		ship.rotation = spawn[1]
+		deployed.append(ship)
 
 	return deployed
 

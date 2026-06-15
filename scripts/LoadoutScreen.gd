@@ -10,23 +10,33 @@ const UPGRADES: Array = [
 	{"id": "Veteran Reflexes",    "name": "Veteran Reflexes  [absorb 1 stress]"},
 ]
 
-const SLOTS: int = 2
-
+var _slot_count: int = 2
 var _deployable: Array = []
-var _slot_pilot: Array = [null, null]          # selected roster entry per slot
-var _pilot_opts: Array = [null, null]
-var _class_opts: Array = [null, null]
-var _weapon_opts: Array = [null, null]
-var _upgrade_opts: Array = [null, null]
-var _stats_labels: Array = [null, null]
-var _selected_classes: Array = ["fighter", "fighter"]
+var _slot_pilot: Array = []      # selected roster entry per slot
+var _pilot_opts: Array = []
+var _class_opts: Array = []
+var _weapon_opts: Array = []
+var _upgrade_opts: Array = []
+var _stats_labels: Array = []
+var _selected_classes: Array = []
 
 
 func _ready() -> void:
 	_deployable = CampaignManager.deployable_pilots()
-	# Sensible defaults: first two distinct deployable pilots.
-	_slot_pilot[0] = _deployable[0] if _deployable.size() >= 1 else null
-	_slot_pilot[1] = _deployable[1] if _deployable.size() >= 2 else null
+	# Squad size: skirmish set it via start_skirmish; campaign reads the mission (default 2).
+	if not CampaignManager.skirmish_mode:
+		CampaignManager.squad_size = int(CampaignManager.current_mission().get("squad_size", 2))
+	_slot_count = clampi(mini(CampaignManager.squad_size, _deployable.size()), 1, CampaignManager.MAX_SQUAD)
+
+	# Size per-slot arrays and seed each slot with a distinct default pilot.
+	for i in range(_slot_count):
+		_slot_pilot.append(_deployable[i] if i < _deployable.size() else null)
+		_pilot_opts.append(null)
+		_class_opts.append(null)
+		_weapon_opts.append(null)
+		_upgrade_opts.append(null)
+		_stats_labels.append(null)
+		_selected_classes.append("fighter")
 	_build_ui()
 
 
@@ -92,7 +102,7 @@ func _build_ui() -> void:
 	slots_row.add_theme_constant_override("separation", 30)
 	root.add_child(slots_row)
 
-	for i in range(SLOTS):
+	for i in range(_slot_count):
 		slots_row.add_child(_build_slot_column(i))
 
 	root.add_child(HSeparator.new())
@@ -193,11 +203,11 @@ func _populate_pilots(slot: int) -> void:
 	var opt: OptionButton = _pilot_opts[slot]
 	if opt == null:
 		return
-	var other: Variant = _slot_pilot[1 - slot]
 	var ids: Array = []
 	opt.clear()
 	for entry in _deployable:
-		if entry == other and entry != _slot_pilot[slot]:
+		# Exclude pilots already chosen in any OTHER slot (no duplicate assignment).
+		if _chosen_in_other_slot(entry, slot):
 			continue
 		var label: String = entry.get("name", "?")
 		if entry.get("is_drone", false):
@@ -208,7 +218,6 @@ func _populate_pilots(slot: int) -> void:
 		opt.add_item(label)
 		ids.append(entry)
 	opt.set_meta("pilot_ids", ids)
-	# Select the slot's current pilot.
 	for i in range(ids.size()):
 		if ids[i] == _slot_pilot[slot]:
 			opt.selected = i
@@ -218,19 +227,28 @@ func _populate_pilots(slot: int) -> void:
 		_slot_pilot[slot] = ids[0]
 
 
+func _chosen_in_other_slot(entry: Variant, slot: int) -> bool:
+	for j in range(_slot_count):
+		if j != slot and _slot_pilot[j] == entry:
+			return true
+	return false
+
+
 func _on_pilot_changed(item_idx: int, slot: int) -> void:
 	var ids: Array = _pilot_opts[slot].get_meta("pilot_ids", [])
 	if item_idx < 0 or item_idx >= ids.size():
 		return
 	_slot_pilot[slot] = ids[item_idx]
 	_sync_slot_to_pilot(slot)
-	# Rebuild the sibling's pilot list so the new pick can't be duplicated. If that
-	# bumped the sibling onto a different pilot, resync its loadout dropdowns too.
-	var other: int = 1 - slot
-	var before: Variant = _slot_pilot[other]
-	_populate_pilots(other)
-	if _class_opts[other] != null and _slot_pilot[other] != before:
-		_sync_slot_to_pilot(other)
+	# Rebuild every other slot's pilot list so the new pick can't be duplicated; resync
+	# any slot the change bumped onto a different pilot.
+	for other in range(_slot_count):
+		if other == slot:
+			continue
+		var before: Variant = _slot_pilot[other]
+		_populate_pilots(other)
+		if _class_opts[other] != null and _slot_pilot[other] != before:
+			_sync_slot_to_pilot(other)
 
 
 # Set a slot's class/weapon/upgrade dropdowns to its pilot's stored loadout.
@@ -307,7 +325,7 @@ func _weapon_display(weapon_id: String) -> String:
 
 func _on_launch() -> void:
 	var deployment: Array = []
-	for slot in range(SLOTS):
+	for slot in range(_slot_count):
 		var pilot: Variant = _slot_pilot[slot]
 		if pilot == null or (pilot is Dictionary and pilot.is_empty()):
 			continue

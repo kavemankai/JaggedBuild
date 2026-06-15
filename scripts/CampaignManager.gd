@@ -37,6 +37,9 @@ var selected_deployment: Array = []      # pilot names chosen for the next missi
 var skirmish_mode: bool = false
 var skirmish_enemies: Array = []
 var skirmish_record: Dictionary = {"w": 0, "l": 0}
+var squad_size: int = 2          # how many player ships deploy (campaign 2; skirmish picks)
+
+const MAX_SQUAD: int = 6
 
 
 func _ready() -> void:
@@ -101,8 +104,10 @@ func deployable_pilots() -> Array:
 	return out
 
 
-# Up to 2 pilots for the next mission: the player's selection if valid, else the top 2.
+# Up to `squad_size` pilots for the next mission: the player's selection if valid,
+# else the top of the deployable pool.
 func pilots_for_deployment() -> Array:
+	var n: int = clampi(squad_size, 1, MAX_SQUAD)
 	var pool: Array = deployable_pilots()
 	if not selected_deployment.is_empty():
 		var chosen: Array = []
@@ -111,8 +116,8 @@ func pilots_for_deployment() -> Array:
 				if entry.get("name", "") == pname and not chosen.has(entry):
 					chosen.append(entry)
 		if not chosen.is_empty():
-			return chosen.slice(0, 2)
-	return pool.slice(0, 2)
+			return chosen.slice(0, n)
+	return pool.slice(0, n)
 
 
 func current_mission() -> Dictionary:
@@ -410,9 +415,10 @@ func _living_named_sorted() -> Array:
 	return out
 
 
-func start_skirmish(enemies: Array) -> void:
+func start_skirmish(enemies: Array, player_squad: int = 2) -> void:
 	skirmish_mode = true
 	skirmish_enemies = enemies
+	squad_size = clampi(player_squad, 1, MAX_SQUAD)
 
 
 # --------------------------------------------------------------- post-battle

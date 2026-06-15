@@ -3,7 +3,8 @@ extends Control
 const ENEMY_CLASS_IDS: Array = ["enemy_fighter", "enemy_scout", "enemy_assault"]
 const ENEMY_CLASS_NAMES: Array = ["Fighter", "Scout", "Assault"]
 
-var _manual_opts: Array = []  # 3 OptionButtons for manual slot (0=None, 1-3=class)
+var _manual_opts: Array = []  # OptionButtons per enemy slot (0=None, 1-3=class)
+var _squad_opt: OptionButton = null   # player squad size (1-4)
 
 
 func _ready() -> void:
@@ -46,6 +47,26 @@ func _build_ui() -> void:
 
 	root.add_child(HSeparator.new())
 
+	# ── YOUR SQUAD ──────────────────────────────────────────────────────────
+	var squad_row := HBoxContainer.new()
+	squad_row.add_theme_constant_override("separation", 12)
+	root.add_child(squad_row)
+	var squad_lbl := Label.new()
+	squad_lbl.text = "YOUR SQUAD"
+	squad_lbl.add_theme_font_size_override("font_size", 15)
+	squad_lbl.modulate = Color(0.55, 0.55, 0.6)
+	squad_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	squad_row.add_child(squad_lbl)
+	_squad_opt = OptionButton.new()
+	_squad_opt.custom_minimum_size = Vector2(220, 34)
+	for n in range(1, 5):
+		_squad_opt.add_item("%d ship%s" % [n, "" if n == 1 else "s"])
+	var avail: int = mini(4, CampaignManager.deployable_pilots().size())
+	_squad_opt.selected = clampi(avail - 1, 0, 3)
+	squad_row.add_child(_squad_opt)
+
+	root.add_child(HSeparator.new())
+
 	# ── RANDOM SECTION ──────────────────────────────────────────────────────
 	var rand_hdr := Label.new()
 	rand_hdr.text = "RANDOM ENCOUNTER"
@@ -54,7 +75,7 @@ func _build_ui() -> void:
 	root.add_child(rand_hdr)
 
 	var rand_info := Label.new()
-	rand_info.text = "2 enemies (60%) or 3 enemies (40%), random classes."
+	rand_info.text = "2-6 enemies, random classes."
 	rand_info.add_theme_font_size_override("font_size", 13)
 	rand_info.modulate = Color(0.7, 0.7, 0.75)
 	root.add_child(rand_info)
@@ -79,7 +100,7 @@ func _build_ui() -> void:
 	man_row.add_theme_constant_override("separation", 16)
 	root.add_child(man_row)
 
-	for i in range(3):
+	for i in range(6):
 		var col := VBoxContainer.new()
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var lbl := Label.new()
@@ -93,10 +114,7 @@ func _build_ui() -> void:
 		opt.add_item("None")
 		for cls_name in ENEMY_CLASS_NAMES:
 			opt.add_item(cls_name)
-		if i < 2:
-			opt.selected = 1  # default: Fighter for first two slots
-		else:
-			opt.selected = 0  # third slot defaults to None
+		opt.selected = 1 if i < 2 else 0   # default: two Fighters, rest None
 		_manual_opts.append(opt)
 		col.add_child(opt)
 		man_row.add_child(col)
@@ -117,12 +135,16 @@ func _build_ui() -> void:
 	root.add_child(back)
 
 
+func _squad_size() -> int:
+	return (_squad_opt.selected + 1) if _squad_opt != null else 2
+
+
 func _on_random() -> void:
-	var count: int = 2 if randf() < 0.6 else 3
+	var count: int = randi_range(2, 6)
 	var specs: Array = []
 	for _i in range(count):
 		specs.append(_make_enemy(ENEMY_CLASS_IDS[randi() % ENEMY_CLASS_IDS.size()]))
-	CampaignManager.start_skirmish(specs)
+	CampaignManager.start_skirmish(specs, _squad_size())
 	get_tree().change_scene_to_file("res://scenes/LoadoutScreen.tscn")
 
 
@@ -135,7 +157,7 @@ func _on_manual_launch() -> void:
 		specs.append(_make_enemy(ENEMY_CLASS_IDS[sel - 1]))
 	if specs.is_empty():
 		return  # nothing selected
-	CampaignManager.start_skirmish(specs)
+	CampaignManager.start_skirmish(specs, _squad_size())
 	get_tree().change_scene_to_file("res://scenes/LoadoutScreen.tscn")
 
 
