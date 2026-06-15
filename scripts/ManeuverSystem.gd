@@ -2,8 +2,12 @@ extends Node
 
 # Tuning constants — adjust without touching logic
 const BASE_SPEED_UNIT: float = 80.0
-const ARENA_WIDTH: float = 1600.0
-const ARENA_HEIGHT: float = 900.0
+# Arena dimensions are per-mission data now (not a fixed screen). These are the
+# defaults (skirmish / legacy 1600x900); the live size lives in `arena_size`,
+# set by Main at battle start. Every world-space bounds check reads arena_size.
+const DEFAULT_ARENA_WIDTH: float = 1600.0
+const DEFAULT_ARENA_HEIGHT: float = 900.0
+var arena_size: Vector2 = Vector2(DEFAULT_ARENA_WIDTH, DEFAULT_ARENA_HEIGHT)
 
 const MAX_RANGE: float = 500.0
 const RANGE_CLOSE: float = 167.0
@@ -96,8 +100,14 @@ func get_maneuver_color(bearing: String) -> String:
 	return "WHITE"
 
 
+# Set by Main at battle start from mission data (per-battle, so size never leaks
+# between missions). Defaults restore 1600x900 when a mission omits dimensions.
+func set_arena(size: Vector2) -> void:
+	arena_size = size
+
+
 func is_out_of_bounds(pos: Vector2) -> bool:
-	return pos.x < 0.0 or pos.x > ARENA_WIDTH or pos.y < 0.0 or pos.y > ARENA_HEIGHT
+	return pos.x < 0.0 or pos.x > arena_size.x or pos.y < 0.0 or pos.y > arena_size.y
 
 
 func is_in_firing_arc(attacker: Ship, target: Ship) -> bool:

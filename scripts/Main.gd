@@ -53,6 +53,12 @@ func _ready() -> void:
 		enemy_specs = CampaignManager.current_enemies()
 		_objective.configure(mission.get("objective", {}))
 
+	# Arena dimensions are per-mission data (defaults to 1600x900). Set every battle so
+	# a large-map mission's size never leaks into the next.
+	var aw: float = float(mission.get("arena_width", ManeuverSystem.DEFAULT_ARENA_WIDTH))
+	var ah: float = float(mission.get("arena_height", ManeuverSystem.DEFAULT_ARENA_HEIGHT))
+	ManeuverSystem.set_arena(Vector2(aw, ah))
+
 	_player_ships = _deploy_player_team()
 	_enemy_ships = _deploy_enemies(enemy_specs)
 

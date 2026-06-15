@@ -76,7 +76,7 @@ func _process(delta: float) -> void:
 	# Slow translation along the arena's long edge; reverses at the margins,
 	# shifting which player ships sit inside each turret's arc.
 	position.x += _drift_dir * CAPITAL_DRIFT_SPEED * delta
-	if position.x > ManeuverSystem.ARENA_WIDTH - CAPITAL_DRIFT_MARGIN:
+	if position.x > ManeuverSystem.arena_size.x - CAPITAL_DRIFT_MARGIN:
 		_drift_dir = -1.0
 	elif position.x < CAPITAL_DRIFT_MARGIN:
 		_drift_dir = 1.0
@@ -213,8 +213,8 @@ func make_capital() -> void:
 func _draw() -> void:
 	if not _draw_as_hull:
 		return
-	draw_rect(Rect2(0.0, 0.0, ManeuverSystem.ARENA_WIDTH, 80.0), Color(0.22, 0.22, 0.26, 1.0))
-	draw_line(Vector2(0.0, 80.0), Vector2(ManeuverSystem.ARENA_WIDTH, 80.0),
+	draw_rect(Rect2(0.0, 0.0, ManeuverSystem.arena_size.x, 80.0), Color(0.22, 0.22, 0.26, 1.0))
+	draw_line(Vector2(0.0, 80.0), Vector2(ManeuverSystem.arena_size.x, 80.0),
 			Color(0.5, 0.5, 0.55, 0.9), 2.0)
 
 
