@@ -204,6 +204,7 @@ func _deploy_player_team() -> Array:
 		ship.shields = cls.shields
 		ship.hull = cls.hull
 		ship.firing_arc_degrees = cls.firing_arc_degrees
+		_apply_size_class(ship, cls)
 		ship.rebuild_arc()
 		ship.apply_setup_passives()
 		var spawn: Array = _player_spawns[i] if i < _player_spawns.size() else [Vector2(800, 650), 0.0]
@@ -212,6 +213,14 @@ func _deploy_player_team() -> Array:
 		deployed.append(ship)
 
 	return deployed
+
+
+# Apply a ShipClassData's size/rear-turret/objective traits to a live ship.
+func _apply_size_class(ship: Ship, cls) -> void:
+	ship.set_size(cls.sprite_scale, cls.collision_radius)
+	ship.rear_arc_degrees = cls.turret_arc_degrees
+	ship.has_rear_turret = cls.has_rear_turret
+	ship.is_objective = cls.is_objective
 
 
 func _deploy_enemies(specs: Array) -> Array:

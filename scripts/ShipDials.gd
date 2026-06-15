@@ -66,6 +66,18 @@ static func gunship() -> DialData:
 	return d
 
 
+# Large-ship "Lumbering" dial — goes mostly straight, banks gently, NO turns, NO
+# K-Turn, speed capped at 3. Shared by Hauler / Bulk Cruiser / Convoy Hull.
+static func large() -> DialData:
+	var d := DialData.new()
+	d.dial = {
+		"STRAIGHT":   {1: "GREEN", 2: "WHITE", 3: "WHITE"},
+		"BANK_LEFT":  {1: "WHITE", 2: "WHITE", 3: "RED"},
+		"BANK_RIGHT": {1: "WHITE", 2: "WHITE", 3: "RED"},
+	}
+	return d
+
+
 # ── ENEMY CLASSES ────────────────────────────────────────────────────────────
 
 # Section 3.1 — Enemy Fighter (mirrors player Fighter but capped at speed 3, no K-Turn)

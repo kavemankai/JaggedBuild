@@ -1,10 +1,11 @@
 extends Node
 
-const COLLISION_RADIUS: float = 40.0
+const COLLISION_RADIUS: float = 40.0   # SMALL default (Ship.collision_radius seeds from this)
 
 
+# Overlap uses each ship's own radius so mixed Small/Large sizes collide correctly.
 func ships_overlap(a: Ship, b: Ship) -> bool:
-	return a.global_position.distance_to(b.global_position) < (COLLISION_RADIUS * 2.0)
+	return a.global_position.distance_to(b.global_position) < (a.collision_radius + b.collision_radius)
 
 
 func resolve_bump(moving_ship: Ship, blocking_ship: Ship) -> void:

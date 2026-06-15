@@ -10,11 +10,12 @@ static func for_id(class_id: String) -> ShipClassData:
 		"heavy_fighter": return _heavy()
 		"interceptor":   return _interceptor()
 		"gunship":       return _gunship()
+		"hauler":        return _hauler()
 		_:               return _fighter()
 
 
 static func player_class_ids() -> Array:
-	return ["fighter", "heavy_fighter", "interceptor", "gunship"]
+	return ["fighter", "heavy_fighter", "interceptor", "gunship", "hauler"]
 
 
 static func display_name(class_id: String) -> String:
@@ -67,5 +68,23 @@ static func _gunship() -> ShipClassData:
 	c.firing_arc_degrees = 90.0
 	c.dial = ShipDials.gunship()
 	c.primary_weapon_options = ["CANNONS", "HEAVY", "ION"]
+	c.upgrade_slots = 1
+	return c
+
+
+# Large player class — slow, tough, covers its own rear with a fixed turret.
+static func _hauler() -> ShipClassData:
+	var c := ShipClassData.new()
+	c.class_name_display = "Hauler (Large)"
+	c.faction = "player"
+	c.attack = 2; c.defence = 1; c.shields = 4; c.hull = 6
+	c.firing_arc_degrees = 90.0
+	c.turret_arc_degrees = 90.0      # rear arc
+	c.has_rear_turret = true
+	c.size_class = "LARGE"
+	c.collision_radius = 75.0
+	c.sprite_scale = 5.0
+	c.dial = ShipDials.large()
+	c.primary_weapon_options = ["HEAVY", "CANNONS", "ION"]
 	c.upgrade_slots = 1
 	return c

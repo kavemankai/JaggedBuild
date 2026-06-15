@@ -47,6 +47,13 @@ var missiles_ammo: int = 2
 var upgrade: String = ""
 var veteran_stress_blocked: bool = false
 var escaped: bool = false
+
+# Large ship class
+var collision_radius: float = 40.0
+var rear_arc_degrees: float = 0.0      # 0 = no rear turret arc
+var has_rear_turret: bool = false
+var rear_cooldown: int = 0             # rear turret's own cooldown (separate from heavy_cooldown)
+var is_objective: bool = false         # escort/convoy hull — destruction fails the mission
 var _arc_pts: Array = []
 
 const CAPITAL_DRIFT_SPEED: float = 35.0
@@ -221,6 +228,13 @@ func _draw() -> void:
 
 func rebuild_arc() -> void:
 	_build_arc_polygon()
+
+
+# Apply a size class: scale the sprite and set the collision footprint.
+func set_size(sprite_scale: float, radius: float) -> void:
+	collision_radius = radius
+	if _body != null:
+		_body.scale = Vector2(sprite_scale, sprite_scale)
 
 
 # Makes this ship a capital turret: a wide-arc emplacement with its own hull.
