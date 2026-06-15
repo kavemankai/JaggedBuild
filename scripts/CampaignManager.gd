@@ -282,9 +282,8 @@ func get_missions() -> Array:
 			"objective": {"type": "DESTROY_ALL"}, "engine": false,
 			"enemies": [
 				_enemy("VIPER", 4, "MARKSMAN", "ION", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),
-				_enemy("VIPER", 4, "EVASIVE", "BURST", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),
 				_enemy("FANG", 4, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
-				_enemy("FANG", 4, "MARKSMAN", "HEAVY", 3, 2, 3, 3, [0.5, 0.2, 0.35], "enemy_assault"),
+				_bulk_cruiser("BULWARK", [0.55, 0.2, 0.3]),
 			],
 			"beat": {"role": "LEAD", "text": "The corridor's ahead. Everything we have, right now. No turning back."},
 		},
@@ -351,15 +350,30 @@ func _turret(p_name: String, x_offset: float, accent: Array) -> Dictionary:
 	}
 
 
-# A protected friendly transport: tanky, sluggish, player must keep it alive.
-func _transport(p_name: String) -> Dictionary:
+# A protected friendly Convoy Hull (Large size class): the escort objective. Tanky,
+# unarmed by default; destroyed = mission fail. `armed` gives it a rear turret only.
+func _transport(p_name: String, armed: bool = false) -> Dictionary:
 	return {
 		"name": p_name, "base_skill": 2, "skill": 2,
-		"accuracy": 0.8, "agility": 1.2, "nerve": 1.0,
-		"passive": "", "active": "", "weapon": "CANNONS",
-		"attack": 1, "defence": 3, "shields": 3, "hull": 8,
+		"accuracy": 0.8, "agility": 1.0, "nerve": 1.0,
+		"passive": "", "active": "", "weapon": "TURRET",
+		"attack": 2, "defence": 1, "shields": 4, "hull": 6,
 		"accent": [0.6, 0.85, 0.7], "xp": 0, "kills": 0, "status": "healthy",
-		"ship_class": "gunship", "is_protected": true,
+		"ship_class": "convoy", "is_protected": true,
+		"size_class": "LARGE", "is_objective": true, "objective_armed": armed,
+	}
+
+
+# Enemy Bulk Cruiser — Large heavy below capital scale. Lumbering dial, forward Heavy,
+# rear turret. Can't turn, so don't sit behind it.
+func _bulk_cruiser(p_name: String, accent: Array) -> Dictionary:
+	return {
+		"name": p_name, "base_skill": 3, "skill": 3,
+		"accuracy": 1.0, "agility": 0.9, "nerve": 0.5,
+		"passive": "", "active": "", "weapon": "HEAVY",
+		"attack": 3, "defence": 1, "shields": 4, "hull": 6,
+		"accent": accent, "xp": 0, "kills": 0, "status": "healthy",
+		"ship_class": "enemy_large", "size_class": "LARGE",
 	}
 
 

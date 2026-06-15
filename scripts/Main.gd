@@ -266,6 +266,13 @@ func _deploy_enemies(specs: Array) -> Array:
 			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
 			_apply_spec(ship, spec)
 			ship.dial_data = _dial_for_class(spec.get("ship_class", "enemy_fighter"))
+			# Large enemies (Bulk Cruiser): bigger footprint + rear turret.
+			if spec.get("size_class", "SMALL") == "LARGE":
+				ship.set_size(5.0, 75.0)
+				ship.rear_arc_degrees = 90.0
+				ship.has_rear_turret = true
+				ship.setup_rear_arc()
+				ship.speed_options = [1, 2, 3]
 			var slot: Array = _enemy_spawns[slot_i % _enemy_spawns.size()] if not _enemy_spawns.is_empty() else [Vector2(800, 250), PI]
 			slot_i += 1
 			ship.position = slot[0]
@@ -284,8 +291,15 @@ func _deploy_transport(spec: Dictionary) -> Ship:
 	ships_root.add_child(ship)
 	ship.speed_options = []
 	ship.bearing_options = []
-	_apply_spec(ship, spec)   # keeps the spec's tanky transport stats (no class override)
+	_apply_spec(ship, spec)   # keeps the spec's tanky convoy stats (no class override)
 	ship.dial_data = null     # never planned, never manoeuvres
+	# Convoy Hull: Large size class, escort objective (destroyed = mission fail).
+	ship.set_size(5.0, 75.0)
+	ship.is_objective = true
+	if spec.get("objective_armed", false):
+		ship.has_rear_turret = true
+		ship.rear_arc_degrees = 90.0
+		ship.setup_rear_arc()
 	ship.position = _transport_spawn[0]
 	ship.rotation = _transport_spawn[1]
 	return ship
@@ -338,6 +352,7 @@ func _dial_for_class(class_id: String):
 	match class_id:
 		"enemy_scout":   return ShipDials.enemy_scout()
 		"enemy_assault": return ShipDials.enemy_assault()
+		"enemy_large":   return ShipDials.large()
 		_:               return ShipDials.enemy_fighter()
 
 

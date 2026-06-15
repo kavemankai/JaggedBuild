@@ -28,6 +28,12 @@ func configure(d: Dictionary) -> void:
 
 
 func evaluate(ships: Array, round_number: int) -> String:
+	# Any escort/objective hull destroyed fails the mission outright, whatever the type.
+	for s in ships:
+		var sh: Ship = s as Ship
+		if sh.is_objective and sh.is_destroyed:
+			return "LOSE"
+
 	var player_alive: bool = _any_alive(ships, "PLAYER")
 	var enemy_alive: bool = _any_alive(ships, "ENEMY")
 
