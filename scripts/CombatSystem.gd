@@ -197,16 +197,42 @@ func pick_target(shooter: Ship, ships: Array) -> Ship:
 	return best
 
 
+# Nearest enemy inside the shooter's REAR turret arc.
+func pick_rear_target(shooter: Ship, ships: Array) -> Ship:
+	var best: Ship = null
+	var best_dist: float = INF
+	for s in ships:
+		var t: Ship = s as Ship
+		if t == shooter or t.is_destroyed or t.team == shooter.team or not t.is_targetable:
+			continue
+		if not ManeuverSystem.is_in_rear_firing_arc(shooter, t):
+			continue
+		var d: float = shooter.global_position.distance_to(t.global_position)
+		if d < best_dist:
+			best_dist = d
+			best = t
+	return best
+
+
+# Rear turret shot: fixed TURRET (2 dmg, shield-bypass), on its own cooldown.
+func _build_rear_shots(attacker: Ship, target: Ship) -> Array:
+	if target == null or attacker.rear_cooldown > 0 or attacker.weapons_disabled():
+		return []
+	return [{"chance": calculate_hit_chance(attacker, target, attacker.attack), "damage": CAPITAL_TURRET_DAMAGE, "ion": 0, "bypass": true, "hit": false}]
+
+
 func run_combat(ships: Array) -> void:
 	var alive: Array = ships.filter(func(s: Ship): return not s.is_destroyed)
 	if alive.size() < 2:
 		return
 
-	# Tick heavy weapon cooldowns and recompute formation state
+	# Tick weapon cooldowns and recompute formation state
 	for s in alive:
 		var sh: Ship = s as Ship
 		if sh.heavy_cooldown > 0:
 			sh.heavy_cooldown -= 1
+		if sh.rear_cooldown > 0:
+			sh.rear_cooldown -= 1
 		sh.in_formation = _has_nearby_ally(sh, ships)
 
 	# Each shooter picks a target and builds its shots
@@ -231,6 +257,21 @@ func run_combat(ships: Array) -> void:
 			shooter.show_combat_ui(in_arc, 0.0, "SENSORS DOWN")
 		else:
 			shooter.show_combat_ui(in_arc, _display_chance(shots), _combat_status(shooter, in_arc, shots))
+
+		# Large ships fire a fixed rear turret at a separate target behind them — a
+		# second engagement in the same phase (the simultaneous pipeline handles N shots).
+		if shooter.has_rear_turret:
+			var rear_target: Ship = pick_rear_target(shooter, ships)
+			var rear_shots: Array = _build_rear_shots(shooter, rear_target) if rear_target != null else []
+			if not rear_shots.is_empty():
+				engagements.append({
+					"shooter": shooter,
+					"target": rear_target,
+					"shots": rear_shots,
+					"used_lock": false,
+					"is_rear": true,
+				})
+			shooter.show_rear_arc(rear_target != null)
 
 	await get_tree().create_timer(1.2).timeout
 
@@ -262,10 +303,16 @@ func run_combat(ships: Array) -> void:
 				if was_alive and e.target.is_destroyed:
 					e.shooter.kills += 1
 
-	# Set cooldown for weapons that just fired (heavy + capital turret share the timer)
+	# Set cooldown for weapons that just fired. The rear turret has its OWN cooldown so a
+	# Hauler's forward Heavy and rear turret don't share/clobber one timer.
 	for e in engagements:
+		if e.shots.is_empty():
+			continue
+		if e.get("is_rear", false):
+			e.shooter.rear_cooldown = CAPITAL_TURRET_COOLDOWN
+			continue
 		var w: Weapon = e.shooter.weapon as Weapon
-		if e.shots.is_empty() or w == null:
+		if w == null:
 			continue
 		if w.weapon_type == Weapon.Type.HEAVY:
 			e.shooter.heavy_cooldown = HEAVY_COOLDOWN_TURNS

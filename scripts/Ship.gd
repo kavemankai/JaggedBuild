@@ -65,6 +65,7 @@ var _draw_as_hull: bool = false
 @onready var _body: Sprite2D = $Body
 @onready var _firing_arc: Polygon2D = $FiringArc
 @onready var _hit_label: Label = $HitLabel
+var _rear_arc: Polygon2D = null
 
 
 func _ready() -> void:
@@ -124,6 +125,8 @@ func hide_combat_ui() -> void:
 	_firing_arc.visible = false
 	_hit_label.visible = false
 	_hit_label.add_theme_color_override("font_color", accent_color)
+	if _rear_arc != null:
+		_rear_arc.visible = false
 
 
 func get_skill() -> int:
@@ -235,6 +238,37 @@ func set_size(sprite_scale: float, radius: float) -> void:
 	collision_radius = radius
 	if _body != null:
 		_body.scale = Vector2(sprite_scale, sprite_scale)
+
+
+# Build the rear-turret arc cone (points backward). Call after rear_arc_degrees is set.
+func setup_rear_arc() -> void:
+	if not has_rear_turret or rear_arc_degrees <= 0.0:
+		return
+	_rear_arc = Polygon2D.new()
+	add_child(_rear_arc)
+	var half: float = deg_to_rad(rear_arc_degrees * 0.5)
+	var reach: float = ManeuverSystem.MAX_RANGE * firing_range_mult
+	var pts := PackedVector2Array()
+	pts.append(Vector2.ZERO)
+	for i in range(13):
+		var t := float(i) / 12.0
+		var angle: float = lerp(-half, half, t)
+		pts.append(Vector2(0.0, 1.0).rotated(angle) * reach)   # backward (+Y is rear)
+	_rear_arc.polygon = pts
+	_rear_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.08)
+	_rear_arc.visible = false
+
+
+# Rear cone shown during combat: low opacity, brighter (and whiter, to distinguish from
+# the forward cone) when an enemy is in the rear arc.
+func show_rear_arc(in_arc: bool) -> void:
+	if _rear_arc == null:
+		return
+	_rear_arc.visible = true
+	if in_arc:
+		_rear_arc.color = Color(0.9, 0.9, 1.0, 0.26)
+	else:
+		_rear_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.08)
 
 
 # Makes this ship a capital turret: a wide-arc emplacement with its own hull.

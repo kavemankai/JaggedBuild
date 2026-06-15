@@ -221,6 +221,7 @@ func _apply_size_class(ship: Ship, cls) -> void:
 	ship.rear_arc_degrees = cls.turret_arc_degrees
 	ship.has_rear_turret = cls.has_rear_turret
 	ship.is_objective = cls.is_objective
+	ship.setup_rear_arc()
 
 
 func _deploy_enemies(specs: Array) -> Array:

@@ -155,6 +155,19 @@ func is_in_firing_arc(attacker: Ship, target: Ship) -> bool:
 	return facing.dot(to_target.normalized()) > cos(deg_to_rad(half_angle))
 
 
+# A Large ship's rear turret arc: directly behind, within rear_arc_degrees. 0 = no arc.
+func is_in_rear_firing_arc(attacker: Ship, target: Ship) -> bool:
+	if attacker.rear_arc_degrees <= 0.0:
+		return false
+	var to_target: Vector2 = target.global_position - attacker.global_position
+	var max_range: float = MAX_RANGE * attacker.firing_range_mult
+	if to_target.length() > max_range:
+		return false
+	var back: Vector2 = Vector2(0.0, 1.0).rotated(attacker.rotation)
+	var half_angle: float = attacker.rear_arc_degrees * 0.5
+	return back.dot(to_target.normalized()) > cos(deg_to_rad(half_angle))
+
+
 func is_in_rear_arc(attacker: Ship, target: Ship) -> bool:
 	var to_attacker: Vector2 = (attacker.global_position - target.global_position).normalized()
 	var target_back: Vector2 = Vector2(0.0, 1.0).rotated(target.rotation)
