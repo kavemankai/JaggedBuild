@@ -62,6 +62,7 @@ static func gunship() -> DialData:
 		"BANK_RIGHT": {1: "WHITE", 2: "WHITE", 3: "WHITE"},
 		"TURN_LEFT":  {1: "GREEN", 2: "WHITE"},
 		"TURN_RIGHT": {1: "GREEN", 2: "WHITE"},
+		"PIVOT":      {0: "GREEN"},
 	}
 	return d
 

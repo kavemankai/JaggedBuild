@@ -26,9 +26,6 @@ const MAX_RANGE: float = 500.0
 const RANGE_CLOSE: float = 167.0
 const RANGE_MEDIUM: float = 333.0
 
-const RED_BEARINGS: Array = ["TURN_LEFT", "TURN_RIGHT", "K_TURN"]
-const GREEN_BEARINGS: Array = ["STRAIGHT"]
-
 const BANK_LATERAL: float = 0.4
 const BANK_FORWARD: float = 0.9
 const TURN_LATERAL: float = 0.7
@@ -59,6 +56,10 @@ func compute_end_state(ship_pos: Vector2, ship_rot: float, maneuver: Maneuver) -
 		"K_TURN":
 			end_pos = ship_pos + Vector2(0.0, -distance).rotated(ship_rot)
 			end_rot = ship_rot + deg_to_rad(180.0)
+		"PIVOT":
+			# Stationary 180° rotation — no translation, pure facing reversal.
+			end_pos = ship_pos
+			end_rot = ship_rot + deg_to_rad(180.0)
 		_:
 			end_pos = ship_pos
 			end_rot = ship_rot
@@ -74,6 +75,7 @@ func get_rotation_delta(bearing: String) -> float:
 		"TURN_LEFT":  return -deg_to_rad(90.0)
 		"TURN_RIGHT": return deg_to_rad(90.0)
 		"K_TURN":     return deg_to_rad(180.0)
+		"PIVOT":      return deg_to_rad(180.0)
 	return 0.0
 
 
@@ -103,14 +105,6 @@ func generate_arc_points(ship_pos: Vector2, ship_rot: float, maneuver: Maneuver,
 		points.append(pt)
 
 	return points
-
-
-func get_maneuver_color(bearing: String) -> String:
-	if bearing in RED_BEARINGS:
-		return "RED"
-	if bearing in GREEN_BEARINGS:
-		return "GREEN"
-	return "WHITE"
 
 
 # Set by Main at battle start from mission data (per-battle, so size never leaks

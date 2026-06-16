@@ -2,7 +2,18 @@ extends Node2D
 
 const SHIP_SCENE: PackedScene = preload("res://scenes/Ship.tscn")
 const GHOST_SCENE: PackedScene = preload("res://scenes/GhostShip.tscn")
-const AI_TEXTURE: Texture2D = preload("res://assets/ships/ship_ai.png")
+
+# Per-class sprites — player
+const TEX_FIGHTER:     Texture2D = preload("res://assets/ships/ship_player.png")
+const TEX_HEAVY:       Texture2D = preload("res://assets/ships/ship_heavy_grey.png")
+const TEX_INTERCEPTOR: Texture2D = preload("res://assets/ships/ship_fighter_colour.png")
+const TEX_GUNSHIP:     Texture2D = preload("res://assets/ships/ship_gunship_grey.png")
+const TEX_HAULER:      Texture2D = preload("res://assets/ships/ship_cruiser_dark.png")
+# Per-class sprites — enemy
+const TEX_AI_FIGHTER:  Texture2D = preload("res://assets/ships/ship_ai.png")
+const TEX_AI_SCOUT:    Texture2D = preload("res://assets/ships/ship_fighter_grey.png")
+const TEX_AI_ASSAULT:  Texture2D = preload("res://assets/ships/ship_ai_alt.png")
+const TEX_AI_LARGE:    Texture2D = preload("res://assets/ships/ship_cruiser_dark.png")
 const ShipDials := preload("res://scripts/ShipDials.gd")
 const ShipClasses := preload("res://scripts/ShipClasses.gd")
 const Objective := preload("res://scripts/Objective.gd")
@@ -199,13 +210,15 @@ func _deploy_player_team() -> Array:
 
 	var deployed: Array = []
 	for i in range(pilots.size()):
-		var ship: Ship = SHIP_SCENE.instantiate()   # default ship_player.png texture
+		var class_id: String = pilots[i].get("ship_class", "fighter")
+		var ship: Ship = SHIP_SCENE.instantiate()
+		ship.ship_texture = _player_texture(class_id)
 		ship.team = "PLAYER"
 		ships_root.add_child(ship)
 		ship.speed_options = [1, 2, 3, 4]
 		ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
 		_apply_spec(ship, pilots[i], true)  # skip passives until after class stats
-		var cls = ShipClasses.for_id(pilots[i].get("ship_class", "fighter"))
+		var cls = ShipClasses.for_id(class_id)
 		ship.dial_data = cls.dial
 		ship.attack = cls.attack
 		ship.defence = cls.defence
@@ -239,7 +252,7 @@ func _deploy_enemies(specs: Array) -> Array:
 
 	for spec in specs:
 		var ship: Ship = SHIP_SCENE.instantiate()
-		ship.ship_texture = AI_TEXTURE
+		ship.ship_texture = _enemy_texture(spec)
 		ship.team = "ENEMY"
 
 		if spec.get("is_capital_body", false):
@@ -294,7 +307,7 @@ func _deploy_enemies(specs: Array) -> Array:
 # It sits at the top of the arena and never manoeuvres; enemies converge on it.
 func _deploy_transport(spec: Dictionary) -> Ship:
 	var ship: Ship = SHIP_SCENE.instantiate()
-	ship.ship_texture = AI_TEXTURE
+	ship.ship_texture = TEX_HAULER
 	ship.team = "PLAYER"
 	ships_root.add_child(ship)
 	ship.speed_options = []
@@ -311,6 +324,25 @@ func _deploy_transport(spec: Dictionary) -> Ship:
 	ship.position = _transport_spawn[0]
 	ship.rotation = _transport_spawn[1]
 	return ship
+
+
+func _player_texture(class_id: String) -> Texture2D:
+	match class_id:
+		"heavy_fighter": return TEX_HEAVY
+		"interceptor":   return TEX_INTERCEPTOR
+		"gunship":       return TEX_GUNSHIP
+		"hauler":        return TEX_HAULER
+		_:               return TEX_FIGHTER
+
+
+func _enemy_texture(spec: Dictionary) -> Texture2D:
+	if spec.get("is_capital_body", false) or spec.get("is_turret", false):
+		return TEX_AI_LARGE
+	match spec.get("ship_class", "enemy_fighter"):
+		"enemy_scout":   return TEX_AI_SCOUT
+		"enemy_assault": return TEX_AI_ASSAULT
+		"enemy_large":   return TEX_AI_LARGE
+		_:               return TEX_AI_FIGHTER
 
 
 func _build_ghosts() -> void:

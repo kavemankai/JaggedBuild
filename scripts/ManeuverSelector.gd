@@ -11,7 +11,7 @@ var _ship: Ship = null
 var _ghost: Node2D = null
 
 # Canonical column order for dial display.
-const BEARING_ORDER: Array = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN"]
+const BEARING_ORDER: Array = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN", "PIVOT"]
 
 
 func open_for(ship: Ship, ghost: Node2D) -> void:

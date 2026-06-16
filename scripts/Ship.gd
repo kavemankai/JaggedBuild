@@ -305,10 +305,22 @@ func make_turret() -> void:
 
 
 func get_maneuver_color(bearing: String, speed: int = 0) -> String:
-	if dial_data != null and speed > 0:
-		var c: String = dial_data.get_color(bearing, speed)
-		return c if c != "" else "WHITE"
-	# Legacy bearing-only fallback (used by enemy ships without a dial).
+	if dial_data != null:
+		if speed > 0:
+			var c: String = dial_data.get_color(bearing, speed)
+			return c if c != "" else "WHITE"
+		# Bearing-only query: return the least-restrictive color available for this bearing
+		# across all speeds, so callers can ask "is this bearing ever green/white?" correctly.
+		if dial_data.dial.has(bearing):
+			var best: String = "RED"
+			for c: String in (dial_data.dial[bearing] as Dictionary).values():
+				if c == "GREEN":
+					return "GREEN"
+				if c == "WHITE":
+					best = "WHITE"
+			return best
+		return "WHITE"
+	# Legacy fallback for ships without DialData (capital turrets, etc.).
 	if bearing in red_bearings:
 		return "RED"
 	if bearing in green_bearings:
