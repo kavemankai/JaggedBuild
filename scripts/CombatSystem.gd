@@ -35,6 +35,20 @@ const MARKSMAN_BONUS: float = 0.08
 const EVASIVE_BONUS: float = 0.08
 const OVERCHARGE_ATK: int = 2
 const MISSILES_DAMAGE: int = 4
+const TORPEDOES_DAMAGE: int = 5
+const TORPEDOES_AMMO: int = 1
+const CRIT_CHANCE_BASE: float = 0.35
+
+# Weapon-typed crit tables. TORPEDOES draws from ALL_CRITS.
+const CRITS_CANNONS:  Array = ["DIRECT_HIT", "HULL_BREACH"]
+const CRITS_BURST:    Array = ["RATTLED", "CONSOLE_FIRE"]
+const CRITS_HEAVY:    Array = ["HULL_BREACH", "STRUCTURAL_DAMAGE", "DIRECT_HIT"]
+const CRITS_ION:      Array = ["SENSORS_FRIED", "POWER_REGULATOR"]
+const CRITS_TURRET:   Array = ["WEAPONS_FAILURE", "DAMAGED_ENGINE"]
+const CRITS_MISSILES: Array = ["DIRECT_HIT", "FUEL_LEAK"]
+const ALL_CRITS:      Array = ["DIRECT_HIT", "HULL_BREACH", "RATTLED", "CONSOLE_FIRE",
+                               "STRUCTURAL_DAMAGE", "SENSORS_FRIED", "POWER_REGULATOR",
+                               "WEAPONS_FAILURE", "DAMAGED_ENGINE", "FUEL_LEAK"]
 
 
 func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1, ignore_def: int = 0) -> float:
@@ -113,7 +127,7 @@ func apply_damage(ship: Ship, amount: int, bypass_shields: bool = false) -> void
 		ship.destroy_ship()
 
 
-# Returns Array of {chance, damage, ion, bypass, hit} dicts. hit is false until resolved.
+# Returns Array of {chance, damage, ion, bypass, hit, crit_guaranteed, weapon_type} dicts.
 func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 	if not in_arc:
 		return []
@@ -128,28 +142,35 @@ func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 			var burst_atk: int = maxi(1, floori(float(attacker.attack) * BURST_ATK_RATIO)) + oc
 			var chance: float = calculate_hit_chance(attacker, defender, burst_atk)
 			return [
-				{"chance": chance, "damage": 1, "ion": 0, "bypass": false, "hit": false},
-				{"chance": chance, "damage": 1, "ion": 0, "bypass": false, "hit": false},
+				{"chance": chance, "damage": 1, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": wtype},
+				{"chance": chance, "damage": 1, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": wtype},
 			]
 		Weapon.Type.HEAVY:
 			if attacker.heavy_cooldown > 0:
 				return []
-			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": HEAVY_DAMAGE, "ion": 0, "bypass": false, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": HEAVY_DAMAGE, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": wtype}]
 		Weapon.Type.ION:
-			# Ion weapons deal no hull/shield damage — only ion track.
-			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 0, "ion": 1, "bypass": false, "hit": false}]
+			# Ion weapons deal no hull/shield damage — only ion track. No crits.
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 0, "ion": 1, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": wtype}]
 		Weapon.Type.MISSILES:
 			if attacker.target_lock != defender or attacker.missiles_ammo <= 0:
 				return []
 			attacker.missiles_ammo -= 1
-			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc, 1), "damage": MISSILES_DAMAGE, "ion": 0, "bypass": false, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc, 1), "damage": MISSILES_DAMAGE, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": wtype}]
+		Weapon.Type.TORPEDOES:
+			# One-shot: requires target lock, 5 dmg, guarantees crit if target shields=0.
+			if attacker.target_lock != defender or attacker.torpedoes_ammo <= 0:
+				return []
+			attacker.torpedoes_ammo -= 1
+			var crit_g: bool = defender.shields <= 0
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc, 1), "damage": TORPEDOES_DAMAGE, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": crit_g, "weapon_type": wtype}]
 		Weapon.Type.TURRET:
 			# Capital-grade emplacement: bypasses shields, cooldown between shots.
 			if attacker.heavy_cooldown > 0:
 				return []
-			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack), "damage": CAPITAL_TURRET_DAMAGE, "ion": 0, "bypass": true, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack), "damage": CAPITAL_TURRET_DAMAGE, "ion": 0, "bypass": true, "hit": false, "crit_guaranteed": false, "weapon_type": wtype}]
 		_:  # CANNONS default
-			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 1, "ion": 0, "bypass": false, "hit": false}]
+			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 1, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": wtype}]
 
 
 func _display_chance(shots: Array) -> float:
@@ -219,6 +240,39 @@ func _build_rear_shots(attacker: Ship, target: Ship) -> Array:
 	if target == null or attacker.rear_cooldown > 0 or attacker.weapons_disabled():
 		return []
 	return [{"chance": calculate_hit_chance(attacker, target, attacker.attack), "damage": CAPITAL_TURRET_DAMAGE, "ion": 0, "bypass": true, "hit": false}]
+
+
+func _crit_table_for(wtype: int) -> Array:
+	match wtype:
+		Weapon.Type.BURST:    return CRITS_BURST
+		Weapon.Type.HEAVY:    return CRITS_HEAVY
+		Weapon.Type.ION:      return CRITS_ION
+		Weapon.Type.TURRET:   return CRITS_TURRET
+		Weapon.Type.MISSILES: return CRITS_MISSILES
+		Weapon.Type.TORPEDOES: return ALL_CRITS
+		_:                    return CRITS_CANNONS
+
+
+# Draw a crit from the weapon's table and apply it to the target.
+func _apply_crit(target: Ship, wtype: int, guaranteed: bool, hit_hull: bool) -> void:
+	# Shields insulate against crits — only land on hull hits.
+	if not hit_hull and not guaranteed:
+		return
+	if not guaranteed and randf() >= CRIT_CHANCE_BASE:
+		return
+	var table: Array = _crit_table_for(wtype)
+	var crit_id: String = table[randi() % table.size()]
+	target.add_crit(crit_id)
+	# Immediate effects applied now; persistent effects tick in EVALUATION.
+	match crit_id:
+		"DIRECT_HIT":
+			target.hull -= 1
+			target.flash_hull()
+			if target.hull <= 0:
+				target.is_destroyed = true
+				target.destroy_ship()
+		"STRUCTURAL_DAMAGE":
+			target.attack = maxi(0, target.attack - 1)
 
 
 func run_combat(ships: Array) -> void:
@@ -296,10 +350,15 @@ func run_combat(ships: Array) -> void:
 		for shot in e.shots:
 			if shot.hit:
 				var was_alive: bool = not e.target.is_destroyed
+				var shields_before: int = e.target.shields
 				if shot.damage > 0:
 					apply_damage(e.target, shot.damage, shot.get("bypass", false))
 				if shot.ion > 0:
 					e.target.ion_tokens += shot.ion
+				# Crit: only possible on hull-hitting shots (damage > 0, not bypass).
+				if shot.damage > 0 and not shot.get("bypass", false):
+					var hit_hull: bool = shields_before <= 0 or e.target.shields_disrupted()
+					_apply_crit(e.target, int(shot.get("weapon_type", Weapon.Type.CANNONS)), shot.get("crit_guaranteed", false), hit_hull)
 				if was_alive and e.target.is_destroyed:
 					e.shooter.kills += 1
 

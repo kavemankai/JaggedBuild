@@ -44,6 +44,7 @@ var ability_used: bool = false
 var overcharged: bool = false
 var kills: int = 0
 var missiles_ammo: int = 2
+var torpedoes_ammo: int = 0  # 1 when weapon is TORPEDOES, set in apply_spec
 var upgrade: String = ""
 var veteran_stress_blocked: bool = false
 var escaped: bool = false
@@ -54,6 +55,8 @@ var rear_arc_degrees: float = 0.0      # 0 = no rear turret arc
 var has_rear_turret: bool = false
 var rear_cooldown: int = 0             # rear turret's own cooldown (separate from heavy_cooldown)
 var is_objective: bool = false         # escort/convoy hull — destruction fails the mission
+var active_crits: Array[String] = []   # persists all battle; Fuel Leak survives to next mission
+var attack_base: int = -1              # set on deploy; Structural Damage modifies attack directly
 var _arc_pts: Array = []
 
 const CAPITAL_DRIFT_SPEED: float = 35.0
@@ -172,6 +175,23 @@ func has_active_ability() -> bool:
 
 
 # Applies one-time setup perks. Call after pilot AND upgrade are assigned, AFTER class stats.
+func has_crit(crit_id: String) -> bool:
+	return crit_id in active_crits
+
+
+func add_crit(crit_id: String) -> void:
+	active_crits.append(crit_id)
+	_flash_crit()
+
+
+func _flash_crit() -> void:
+	var tween := create_tween()
+	tween.tween_property(_body, "modulate", Color(1.0, 0.8, 0.0, 1.0), 0.05)
+	tween.tween_property(_body, "modulate", Color.WHITE, 0.2)
+	tween.tween_property(_body, "modulate", Color(1.0, 0.8, 0.0, 1.0), 0.05)
+	tween.tween_property(_body, "modulate", Color.WHITE, 0.2)
+
+
 func apply_setup_passives() -> void:
 	match get_passive():
 		"STALWART":

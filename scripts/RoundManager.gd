@@ -32,6 +32,12 @@ func set_objective(obj: Objective) -> void:
 func begin_round() -> void:
 	round_number += 1
 	current_phase = Phase.PLANNING
+	# RATTLED: +1 stress at start of each planning phase.
+	for ship in ships:
+		var s: Ship = ship as Ship
+		if not s.is_destroyed and s.has_crit("RATTLED"):
+			s.stress += 1
+			s.pulse_stress()
 	planning_phase_started.emit()
 
 
@@ -112,6 +118,10 @@ func _evaluate() -> void:
 
 	await get_tree().create_timer(0.3).timeout
 
+	# Crit ticks: persistent damage effects fire each EVALUATION.
+	for ship in ships:
+		_process_crits(ship as Ship)
+
 	# Ion: tick disabled-system durations, then (re)apply threshold disables.
 	# Ion tokens persist for the whole engagement (reset on mission end via reload).
 	for ship in ships:
@@ -130,6 +140,34 @@ func _evaluate() -> void:
 			_end_game("MUTUAL DESTRUCTION", Color.WHITE, false)
 		_:
 			begin_round()
+
+
+func _process_crits(s: Ship) -> void:
+	if s.is_destroyed or s.is_capital:
+		return
+	# Hull Breach: +1 hull damage per EVALUATION.
+	if s.has_crit("HULL_BREACH"):
+		s.hull -= 1
+		s.flash_hull()
+	# Console Fire: +1 hull damage; 50% chance to extinguish each EVALUATION.
+	if s.has_crit("CONSOLE_FIRE"):
+		s.hull -= 1
+		s.flash_hull()
+		if randf() >= 0.5:
+			s.active_crits.erase("CONSOLE_FIRE")
+	# Fuel Leak: +1 hull damage per EVALUATION (persists to next mission via save).
+	if s.has_crit("FUEL_LEAK"):
+		s.hull -= 1
+		s.flash_hull()
+	# Permanent system crits: re-apply disabled_systems so they don't expire via ion tick.
+	# We use 999 as "permanent until repaired between missions".
+	for sys_crit in [["SENSORS_FRIED", "SENSORS"], ["POWER_REGULATOR", "SHIELDS"],
+					  ["WEAPONS_FAILURE", "WEAPONS"], ["DAMAGED_ENGINE", "ENGINES"]]:
+		if s.has_crit(sys_crit[0]):
+			s.disabled_systems[sys_crit[1]] = 999
+	if s.hull <= 0 and not s.is_destroyed:
+		s.is_destroyed = true
+		s.destroy_ship()
 
 
 func _process_ion(s: Ship) -> void:

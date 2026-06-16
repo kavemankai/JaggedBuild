@@ -339,10 +339,17 @@ func _apply_spec(ship: Ship, spec: Dictionary, skip_passives: bool = false) -> v
 	w.weapon_type = _weapon_type(spec.get("weapon", "CANNONS"))
 	w.display_name = spec.get("weapon", "Cannons").capitalize()
 	ship.weapon = w
+	# Torpedoes ammo: 1 shot only, set from weapon type.
+	ship.torpedoes_ammo = 1 if w.weapon_type == Weapon.Type.TORPEDOES else 0
+	ship.attack_base = int(spec.get("attack", 3))
 
 	if spec.has("accent"):
 		var a: Array = spec["accent"]
 		ship.accent_color = Color(a[0], a[1], a[2], 1.0)
+
+	# Fuel Leak persists from previous mission.
+	if spec.get("fuel_leak", false):
+		ship.active_crits.append("FUEL_LEAK")
 
 	if not skip_passives:
 		ship.apply_setup_passives()
@@ -362,6 +369,7 @@ func _weapon_type(weapon_name: String) -> Weapon.Type:
 		"HEAVY": return Weapon.Type.HEAVY
 		"ION": return Weapon.Type.ION
 		"MISSILES": return Weapon.Type.MISSILES
+		"TORPEDOES": return Weapon.Type.TORPEDOES
 		"TURRET": return Weapon.Type.TURRET
 		_: return Weapon.Type.CANNONS
 

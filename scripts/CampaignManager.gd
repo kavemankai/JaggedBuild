@@ -27,6 +27,14 @@ const DIST_LOSE: float = -15.0           # objective failed
 
 const TUTORIAL_COUNT: int = 3            # mission_index 0..2 are tutorials
 
+# Mission deck (Gate 40): card pool the player draws from each turn.
+# In THE LONG RETREAT the deck is the linear mission list; future campaigns can shuffle.
+# "deck_mode: false" keeps backward-compat with the linear progression.
+const DECK_DRAW_SIZE: int = 3
+var deck_mode: bool = false              # true = draw-and-pick mode
+var mission_deck: Array = []            # indices remaining in the pool
+var mission_hand: Array = []            # current drawn options (indices)
+
 var roster: Array = []
 var mission_index: int = 0
 var distance: float = DISTANCE_START
@@ -476,13 +484,19 @@ func record_battle(player_ships: Array, won: bool) -> void:
 			if levels > 0:
 				line += "   LEVEL UP -> skill %d" % entry["skill"]
 
+		# Fuel Leak persists to next mission. All other crits clear at mission end.
+		if ship.has_crit("FUEL_LEAK") and not ship.is_destroyed:
+			entry["fuel_leak"] = true
+		else:
+			entry.erase("fuel_leak")
+
 		if ship.is_destroyed:
+			entry.erase("fuel_leak")  # dead pilots don't carry crits forward
 			losses += 1
-			# Capture true-KIA callsigns (pre-rename) for the survivor reaction.
-			var kia_now: bool = not won and not entry.get("commander", false) and not entry.get("is_drone", false)
 			var lost_name: String = entry.get("name", "?")
 			line += _handle_casualty(entry, won)
-			if kia_now:
+			# KIA if _handle_casualty converted to drone (name changed).
+			if entry.get("is_drone", false) and entry.get("name", "") != lost_name:
 				kia_names.append(lost_name)
 
 		last_summary.append(line)
@@ -536,17 +550,28 @@ func _survivor_reaction(kia_names: Array) -> String:
 
 
 # Returns the result-line suffix and mutates the entry (injured / drone conversion).
+# Gate 41: eject roll — all shot-down pilots roll nerve to survive; failure = KIA.
 func _handle_casualty(entry: Dictionary, won: bool) -> String:
-	if won:
-		entry["status"] = "injured"
-		return "   [injured]"
-	# Lost the mission. Commander is protected (emergency craft); veterans hollow into drones.
+	# Commander always survives (emergency extraction).
 	if entry.get("commander", false):
 		entry["status"] = "injured"
 		return "   [downed — recovered by SAR]"
 	if entry.get("is_drone", false):
-		entry["status"] = "injured"      # a drone lost is just a machine; rebuilt, rests a mission
+		entry["status"] = "injured"
 		return "   [drone lost]"
+
+	# Roll eject. Nerve determines survival chance. Win bonus: +0.3 eject chance.
+	var nerve: float = float(entry.get("nerve", 0.2))
+	if entry.get("passive", "") == "STEADY":
+		nerve = minf(nerve + 0.25, 1.0)
+	var eject_chance: float = nerve + (0.3 if won else 0.0)
+	var ejected: bool = randf() < clampf(eject_chance, 0.05, 0.95)
+
+	if ejected:
+		entry["status"] = "injured"
+		return "   [ejected — injured]"
+
+	# Eject failed — KIA. Drone hollowing.
 	var callsign: String = entry.get("name", "?")
 	fallen.append(callsign)
 	_convert_to_drone(entry)
@@ -683,6 +708,61 @@ func _apply_levels(entry: Dictionary) -> int:
 	return target - current
 
 
+# ----------------------------------------------------------------- mission deck
+
+# Initialise the deck from the mission list (indices after tutorials).
+func _init_deck() -> void:
+	mission_deck.clear()
+	var missions := get_missions()
+	for i in range(TUTORIAL_COUNT, missions.size()):
+		mission_deck.append(i)
+	mission_deck.shuffle()
+
+
+# Draw up to DECK_DRAW_SIZE cards. Returns the mission dicts in hand.
+func draw_mission_hand() -> Array:
+	if not deck_mode:
+		# Linear mode: return just the next mission.
+		mission_hand = [mission_index]
+		return [current_mission()]
+	if mission_deck.is_empty():
+		_init_deck()
+	mission_hand.clear()
+	var draw_count: int = mini(DECK_DRAW_SIZE, mission_deck.size())
+	for i in range(draw_count):
+		mission_hand.append(mission_deck[i])
+	var missions := get_missions()
+	var hand_missions: Array = []
+	for idx in mission_hand:
+		hand_missions.append(missions[idx])
+	return hand_missions
+
+
+# Player picks a card from the hand. Removes it from deck and advances to it.
+func pick_mission_from_hand(hand_slot: int) -> void:
+	if not deck_mode:
+		return
+	if hand_slot < 0 or hand_slot >= mission_hand.size():
+		return
+	var chosen_index: int = mission_hand[hand_slot]
+	mission_index = chosen_index
+	# Remove all drawn cards from the deck (drawn but not picked are discarded).
+	for idx in mission_hand:
+		mission_deck.erase(idx)
+	mission_hand.clear()
+
+
+# ------------------------------------------------------------------- elite pilots (Gate 41)
+# Named enemy aces that appear in later missions: higher skill, unique passive.
+func _elite(p_name: String, skill: int, passive: String, weapon: String,
+			 atk: int, dfn: int, shd: int, hp: int, accent: Array,
+			 ship_class: String = "enemy_fighter") -> Dictionary:
+	var e := _enemy(p_name, skill, passive, weapon, atk, dfn, shd, hp, accent, ship_class)
+	e["elite"] = true
+	e["nerve"] = 0.6  # aces hold their nerve under fire
+	return e
+
+
 # ------------------------------------------------------------------- save/load
 func save() -> void:
 	var data := {
@@ -692,6 +772,8 @@ func save() -> void:
 		"distance": distance,
 		"fallen": fallen,
 		"skirmish_record": skirmish_record,
+		"deck_mode": deck_mode,
+		"mission_deck": mission_deck,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -720,6 +802,8 @@ func load_campaign() -> bool:
 	distance = float(data.get("distance", DISTANCE_START))
 	fallen = data.get("fallen", [])
 	skirmish_record = data.get("skirmish_record", {"w": 0, "l": 0})
+	deck_mode = bool(data.get("deck_mode", false))
+	mission_deck = data.get("mission_deck", [])
 	return not roster.is_empty()
 
 
