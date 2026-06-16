@@ -3,6 +3,7 @@ extends Control
 signal all_confirmed
 
 const SHIP_CARD: PackedScene = preload("res://scenes/ShipCard.tscn")
+const Formation := preload("res://scripts/Formation.gd")
 
 @onready var _cards_row: HBoxContainer = $Panel/Margin/HBox/Cards
 @onready var _confirm_btn: Button = $Panel/Margin/HBox/ConfirmAll
@@ -12,6 +13,7 @@ var _ships: Array = []          # friendly ships
 var _ghosts: Dictionary = {}    # ship -> GhostShip
 var _cards: Array = []
 var _camera: Node = null        # CameraRig; clicking a card focuses it on the ship
+var _formations: Array = []     # active Formation objects (player wing-locks)
 
 
 func set_camera(cam: Node) -> void:
@@ -40,6 +42,7 @@ func _build_cards() -> void:
 		card.setup(ship)
 		card.card_clicked.connect(_open_selector)
 		card.selection_changed.connect(refresh)
+		card.formation_toggled.connect(_on_formation_toggled)
 		_cards.append(card)
 
 
@@ -53,8 +56,102 @@ func reset() -> void:
 	refresh()
 
 
+# --- Formation lock (Gate 44) -----------------------------------------------
+# LOCK pressed: if the ship is already in a formation, break it; otherwise gather
+# every nearby unformed friendly (within lock range) and snap them into one
+# formation — highest-skill becomes Lead, up to 2 others become Wings.
+func _on_formation_toggled(ship: Ship) -> void:
+	var existing = _formation_of(ship)
+	if existing != null:
+		_dissolve(existing)
+		refresh()
+		return
+
+	var group: Array = [ship]
+	for s in _ships:
+		var o: Ship = s as Ship
+		if o == ship or o.is_destroyed or o.escaped:
+			continue
+		if _formation_of(o) != null:
+			continue
+		if ship.global_position.distance_to(o.global_position) <= CombatSystem.FORMATION_RANGE:
+			group.append(o)
+	if group.size() < 2:
+		return   # nobody close enough to form with
+
+	group.sort_custom(func(a, b): return (a as Ship).get_skill() > (b as Ship).get_skill())
+	var f = Formation.new()
+	f.lead = group[0]
+	f.wings = group.slice(1, 1 + Formation.MAX_WINGS)
+	f.lead.formation = f
+	f.lead.formation_role = "LEAD"
+	for w in f.wings:
+		(w as Ship).formation = f
+		(w as Ship).formation_role = "WING"
+		(w as Ship).selected_maneuver = null   # cleared; lead will drive it
+	_formations.append(f)
+	refresh()
+
+
+func _formation_of(ship: Ship):
+	for f in _formations:
+		if f.has(ship):
+			return f
+	return null
+
+
+func _dissolve(f) -> void:
+	for m in f.members():
+		var ship: Ship = m as Ship
+		if ship == null:
+			continue
+		ship.formation = null
+		ship.formation_role = "NONE"
+	_formations.erase(f)
+
+
+# Mirror each lead's maneuver onto its wings (clamped to the wing's own dial), and
+# drop any formation that's no longer valid (member lost or strayed out of range).
+func _apply_formations() -> void:
+	var dead: Array = []
+	for f in _formations:
+		if not f.is_valid():
+			dead.append(f)
+			continue
+		if f.lead.selected_maneuver != null:
+			for w in f.wings:
+				var wing: Ship = w as Ship
+				if wing.is_destroyed or wing.escaped:
+					continue
+				wing.selected_maneuver = _legal_for(wing, f.lead.selected_maneuver)
+	for f in dead:
+		_dissolve(f)
+
+
+# The lead's maneuver, clamped to what the wing's dial actually allows (and never a
+# RED maneuver while the wing is stressed). Formation dial = intersection of members'.
+func _legal_for(wing: Ship, lead_m: Maneuver) -> Maneuver:
+	var available: bool = true
+	if wing.dial_data != null:
+		available = wing.dial_data.get_color(lead_m.bearing, lead_m.speed) != ""
+	else:
+		available = lead_m.bearing in wing.bearing_options
+	var col: String = wing.get_maneuver_color(lead_m.bearing, lead_m.speed)
+	if available and not (wing.stress > 0 and col == "RED"):
+		var m := Maneuver.new()
+		m.bearing = lead_m.bearing
+		m.speed = lead_m.speed
+		return m
+	return _closest_non_red(wing, lead_m.speed)
+
+
 func _open_selector(ship: Ship) -> void:
 	if ship.is_destroyed or ship.escaped:
+		return
+	# Wings don't pick their own maneuver — the lead drives them.
+	if ship.formation_role == "WING":
+		if _camera != null:
+			_camera.focus_on(ship.global_position, false)
 		return
 	# Focus the camera on this ship so it's never lost on a large map. Recenter only
 	# (don't override the player's chosen zoom).
@@ -102,6 +199,7 @@ func _refresh_ghosts(active_ship) -> void:
 
 
 func refresh() -> void:
+	_apply_formations()
 	var missing: int = 0
 	for s in _ships:
 		var ship: Ship = s as Ship

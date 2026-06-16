@@ -57,6 +57,11 @@ var rear_cooldown: int = 0             # rear turret's own cooldown (separate fr
 var is_objective: bool = false         # escort/convoy hull — destruction fails the mission
 var active_crits: Array[String] = []   # persists all battle; Fuel Leak survives to next mission
 var attack_base: int = -1              # set on deploy; Structural Damage modifies attack directly
+
+# Formation lock (player). formation is a Formation (RefCounted) or null.
+var formation = null
+var formation_role: String = "NONE"    # "NONE" / "LEAD" / "WING"
+
 var _arc_pts: Array = []
 
 const CAPITAL_DRIFT_SPEED: float = 35.0

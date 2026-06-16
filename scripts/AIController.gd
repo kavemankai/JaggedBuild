@@ -4,6 +4,7 @@ extends Node
 # Falls back to heuristic scorer for ships without a statcard (legacy / capital turrets).
 
 const AIStatcards := preload("res://scripts/AIStatcards.gd")
+const AIStatcard := preload("res://scripts/AIStatcard.gd")
 
 # Range / bearing thresholds matching ManeuverSystem constants.
 const RANGE_CLOSE: float = 167.0
@@ -186,8 +187,7 @@ func _bearing_zone(ai_ship: Ship, target: Ship) -> String:
 	var to_target: Vector2 = (target.global_position - ai_ship.global_position).normalized()
 	var facing: Vector2 = Vector2(0.0, -1.0).rotated(ai_ship.rotation)
 	var dot: float = facing.dot(to_target)
-	var cross: float = facing.cross(to_target)
-	var _ = cross  # used for left/right but zone is symmetric
+	# Zone is symmetric (left/right share a table cell), so only the forward dot matters.
 	if dot > 0.92:   return "BULLSEYE"
 	if dot > 0.5:    return "FRONT"
 	if dot > -0.17:  return "FRONT_SIDE"
@@ -258,7 +258,7 @@ func _fallback_bearings(ai_ship: Ship) -> Array:
 	return valid if not valid.is_empty() else ["STRAIGHT"]
 
 
-func _flee_maneuver(ai_ship: Ship, edge: String) -> Maneuver:
+func _flee_maneuver(ai_ship: Ship, _edge: String) -> Maneuver:
 	# Pick the fastest straight maneuver toward the flee edge.
 	var m := Maneuver.new()
 	m.bearing = "STRAIGHT"
@@ -356,6 +356,9 @@ func _score_state(end_state: Dictionary, target: Ship, avoid_points: Array) -> f
 	var end_rot: float = end_state["rotation"]
 	if ManeuverSystem.is_out_of_bounds(end_pos):
 		return -1000.0
+	# Advancing Map: the leading edge is a board edge — never end behind it.
+	if ManeuverSystem.is_in_danger(end_pos):
+		return -800.0
 	if target == null:
 		return 0.0
 	var to_target: Vector2 = target.global_position - end_pos

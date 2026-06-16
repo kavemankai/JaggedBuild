@@ -149,7 +149,10 @@ func _build_mission_card(parent: VBoxContainer) -> void:
 
 	if CampaignManager.engine_present():
 		var eng := Label.new()
-		eng.text = "⚠  THE ENGINE IS PRESENT — its turrets will be on the map edge."
+		if m.get("advancing", false):
+			eng.text = "⚠  THE ENGINE BEARS DOWN — a Danger Zone sweeps the map. Flee to the jump point."
+		else:
+			eng.text = "⚠  THE ENGINE IS PRESENT — its turrets will be on the map edge."
 		eng.add_theme_font_size_override("font_size", 13)
 		eng.modulate = Color(1.0, 0.4, 0.35)
 		parent.add_child(eng)

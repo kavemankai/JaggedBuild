@@ -1,5 +1,5 @@
 # CLAUDE.md — DOGFIGHT PROJECT
-*Last updated: 2026-06-16 — reflects all 31 built gates + full design through Gate 46*
+*Last updated: 2026-06-16 — ALL 46 gates built (1–46). See GATE STATUS + BUILD REALITY.*
 
 ## WHAT THIS PROJECT IS
 
@@ -50,7 +50,7 @@ res://
     ├── [AUTOLOADS — 6 total, all registered in Project Settings]
     │   ├── ManeuverSystem.gd   ← arc computation, end-state, dial validation
     │   ├── RoundManager.gd     ← phase state machine + signals
-    │   ├── CollisionHandler.gd ← HOTAC Swerve collision (Gate 37, not yet built)
+    │   ├── CollisionHandler.gd ← HOTAC Swerve collision (Gate 37, built)
     │   ├── CombatSystem.gd     ← hit chance, simultaneous shots, damage, crits
     │   ├── ActionSystem.gd     ← Focus/Evade/Lock/Boost/Pivot token resolution
     │   └── CampaignManager.gd  ← mission deck, XP, pilot progression, save/load
@@ -60,10 +60,13 @@ res://
     ├── Maneuver.gd             class_name Maneuver (RefCounted)
     ├── DialData.gd             class_name DialData (Resource) — per-ship maneuver table
     ├── ShipClassData.gd        class_name ShipClassData (Resource)
-    ├── AIStatcard.gd           class_name AIStatcard (Resource) — HOTAC AI (Gate 36)
+    ├── AIStatcard.gd           Resource (NO class_name — preloaded) — HOTAC AI (Gate 36)
+    ├── AIStatcards.gd          static factory: for_class() → AIStatcard (Gate 36)
+    ├── Formation.gd            RefCounted (NO class_name — preloaded) — player wing-lock (Gate 44)
+    ├── Objective.gd            RefCounted (NO class_name — preloaded) — win/lose conditions
     ├── TacticalPattern.gd      ← OBSOLETE — replaced by AIStatcard. Do not use.
     ├── GhostShip.gd
-    ├── AIController.gd         ← Node in Main.tscn (NOT autoload)
+    ├── AIController.gd         ← Node in Main.tscn (NOT autoload) — HOTAC + heuristic fallback
     ├── PlanningStrip.gd
     ├── ShipCard.gd
     ├── ManeuverSelector.gd
@@ -314,7 +317,7 @@ Digital pre-measuring: evaluate action criteria exactly, not by eyeballing.
 **Ion:** ionized AI → forced 1-straight, Focus action only.
 **Crit repair:** if ship has a repairable crit (Fuel Leak), repair is first action priority.
 
-### COLLISION — HOTAC SWERVE (Gate 37, not yet built)
+### COLLISION — HOTAC SWERVE (Gate 37, built)
 Replaces old truncate-before-overlap approach.
 If chosen maneuver overlaps: adjust bearing 45° either direction, same speed,
 K-turn→bank. If still collides, execute original and accept collision.
@@ -337,7 +340,7 @@ res://resources/ai_statcards/
 
 ---
 
-## FORMATION LOCK (Player — Gate 44-45, not yet built)
+## FORMATION LOCK (Player — Gate 44-45, built)
 
 Proximity snap: ships within 190px offered LOCK button on ShipCard.
 Maximum: 1 Lead + 2 Wings (3 ships).
@@ -356,7 +359,7 @@ separation outside 190px, stress prevents red maneuver execution.
 
 ---
 
-## ADVANCING MAP (Gate 42-43, not yet built)
+## ADVANCING MAP (Gate 42-43, built)
 
 Danger Zone advances along scroll_axis by scroll_speed_px each EVALUATION phase.
 Ships behind leading edge take 1 hull damage (shield bypass) → then destroyed.
@@ -373,7 +376,7 @@ Spawn positions defined relative to danger_zone_leading_edge, not fixed world co
 
 ---
 
-## CAMPAIGN — MISSION DECK ENGINE (Gate 40, not yet built)
+## CAMPAIGN — MISSION DECK ENGINE (Gate 40, built — defaults OFF / linear)
 
 Replaces linear 12-mission chain.
 Mission cards form a deck. Each round: draw several, player picks one.
@@ -462,7 +465,7 @@ Accent colours:
 ## GATE STATUS
 
 ```
-✅ BUILT (Gates 1–31)
+✅ BUILT (Gates 1–46 — ALL gates complete)
 Gate 1-5:   Movement, round loop, collision, AI, combat (probability model)
 Gate 5.5:   Squad planning UI (N ships, multi-ghost, confirm all)
 Gate 6-10:  Actions, stress, weapons (5 types), pilot stats, ion system
@@ -477,50 +480,76 @@ Gate 28-31: Large ship class — size_class/collision_radius(75)/sprite_scale(5)
             weapon + fixed rear TURRET, own cooldown), Hauler (player) + Bulk
             Cruiser (enemy, in M10) + Convoy Hull (is_objective, mission-fails on
             death). Hauler in LoadoutScreen; AI weights is_objective targets +400.
-
-⬜ DESIGNED, NOT YET BUILT (Gates 32–46)
-Gate 32-35: Critical hit system (shields insulate, weapon-typed crit tables,
-            10 effects, TORPEDOES weapon type, Fuel Leak campaign persistence)
-Gate 36-39: HOTAC AIStatcard infrastructure, Swerve collision, alternate target
-            modes (Strike/Flee/Escort), token logic, crit-repair priority
-Gate 40-41: Mission-deck campaign engine, eject roll → hollowing, elite enemy pilots
-Gate 42-43: Advancing Map Danger Zone, spawn system, Forward Wall, trench run variant
-Gate 44-45: Formation Lock (proximity snap, lead+wing movement, chain fire)
-Gate 46:    Integration + M4/M11/M12 wired to advancing map
+Gate 32-35: Critical hit system — shields insulate (crits land on hull hits only),
+            CRIT_CHANCE_BASE 0.35, 10 effects across 7 weapon-typed tables, TORPEDOES
+            weapon (5dmg/1ammo/guaranteed crit if shields=0). Crits tick in EVALUATION
+            (HULL_BREACH/CONSOLE_FIRE/FUEL_LEAK), RATTLED in PLANNING. Fuel Leak persists
+            to next campaign mission; all others clear at mission end.
+Gate 36-39: HOTAC AIStatcard (AIStatcard.gd no-class_name + AIStatcards.gd factory),
+            full 4-step AI (target→maneuver→action→attack), range-band×bearing-zone
+            tables, ionized→1-straight, STRIKE/FLEE/ESCORT target modes. HOTAC Swerve
+            collision (bank/turn 45° before accepting). Heuristic scorer kept as fallback.
+Gate 40-41: Mission-deck engine (deck_mode + draw/pick API, default linear), eject roll
+            (nerve-based survival, +0.3 on win) → KIA hollowing, _elite enemy pilots.
+Gate 42-43: Advancing Map Danger Zone (ManeuverSystem.configure_danger, sweeps each
+            EVALUATION, 1 hull bypass behind edge), Forward Wall (top ESCAPE), AI avoids
+            the edge. Drawn as red hazard fill + leading edge in Main.
+Gate 44-45: Formation Lock (Formation.gd, LOCK button on ShipCard, 1 Lead + 2 Wings,
+            wings mirror lead bearing+speed clamped to own dial), Chain Fire (lead hit →
+            wings in arc get free cannon shot, added to the simultaneous volley).
+Gate 46:    M4/M11/M12 wired to advancing map (engine = sweeping zone, not static hull);
+            verified booting into M4 advancing mission.
 ```
 
 ---
 
 ## BUILD REALITY (shipped code vs. this design doc)
 
-This doc is design-forward; the actual build (Gates 1–31) diverges in places. A session
-building Gate 32+ should follow the SHIPPED conventions, not invent the doc's targets:
+This doc is design-forward; the actual build diverges in places. All 46 gates are now
+built — follow the SHIPPED conventions below, not the doc's original targets:
 
-- **Dials & ship classes are GDScript static factories, NOT `.tres`.** `ShipDials.gd`
-  (`fighter()/heavy()/interceptor()/gunship()/large()/enemy_*()`) returns `DialData.new()`;
-  `ShipClasses.gd` (`for_id()`, `_fighter()…_hauler()`) returns `ShipClassData.new()`. There is
+- **Dials, ship classes & AI statcards are GDScript static factories, NOT `.tres`.**
+  `ShipDials.gd` returns `DialData.new()`; `ShipClasses.gd` (`for_id()`) returns
+  `ShipClassData.new()`; `AIStatcards.gd` (`for_class()`) returns an `AIStatcard`. There is
   no `res://resources/dials/` or `ai_statcards/` folder. `ShipClasses.for_id()` — NOT `get_class`.
+- **No-class_name preloaded scripts** (avoid the class-registry reload race): `Objective.gd`,
+  `Formation.gd`, `AIStatcard.gd`. Consumers `const X := preload(...)` and use that as the type.
 - **Tuning constants are `const` in autoload scripts** (CombatSystem.gd, ManeuverSystem.gd,
-  CampaignManager.gd), not `.tres`. (The "all in .tres" rule below is aspirational.)
-- **AIController is the heuristic weighted-scorer** (`select_maneuver`/`_score_state`/
-  `_highest_threat`), still in use. HOTAC statcard AI is NOT built (Gate 36+).
-- **Collision** is `CollisionHandler.resolve_bump` (truncate-before-overlap), now reading each
-  ship's own `collision_radius`. HOTAC Swerve NOT built (Gate 37).
+  CampaignManager.gd), not `.tres`. (The "all in .tres" rule above is aspirational.)
+- **AIController is HOTAC-statcard-driven** (`_hotac_target/_hotac_maneuver/_hotac_action`)
+  with the old heuristic scorer (`_score_state/_highest_threat`) retained as a FALLBACK for
+  ships without a statcard (capital turrets, legacy). Statcards are matched via the ship's
+  `statcard_class` meta or dial heuristic; most enemies still use the heuristic fallback.
+- **Collision** is `CollisionHandler.resolve_bump` — HOTAC Swerve (bank/turn 45° each way,
+  reading each ship's own `collision_radius`) then truncate-to-last-safe-point if no swerve fits.
 - **No PIVOT.** The large dial (`ShipDials.large`) is STRAIGHT + gentle banks only, no turns/
-  K-turn, speed≤3. The rear turret is a FIXED rear arc (`turret_arc_degrees`), not selectable
-  FRONT/REAR/LEFT/RIGHT. No `turret_facing` field. Convoy Hull is stationary (no autopilot yet).
-- **Objective system** (`Objective.gd`, no class_name — preloaded): DESTROY_ALL / SURVIVE_ROUNDS /
-  REACH_EDGE / PROTECT / HOLD_POSITION; `RoundManager.set_objective`; `game_ended(msg,color,won)`.
-  Any `is_objective` hull destroyed → LOSE.
-- **Campaign is linear "THE LONG RETREAT"** (3 tutorials + 12 missions in `CampaignManager.get_missions`),
-  with Distance, AI-drone hollowing, role-based comms, 3 endings. The mission-DECK engine (Gate 40)
-  is NOT built. Save is `version: 2`.
-- **Assets:** repo has only `ship_player.png` + `ship_ai.png` (+ a couple reserves). The per-class
-  sprites and `ship_large_hull.png` listed below do NOT exist yet — all classes reuse those two,
-  scaled (3× small, 5× large). `rotation_degrees = -90`.
+  K-turn, speed≤3. The rear turret is a FIXED rear arc (`turret_arc_degrees`), not selectable.
+  Convoy Hull is stationary (no autopilot).
+- **Crits** (`CombatSystem._apply_crit`): shields insulate (hull-hit only), 0.35 base, 10 effects
+  in 7 weapon-typed tables. DIRECT_HIT/STRUCTURAL_DAMAGE apply immediately; HULL_BREACH/
+  CONSOLE_FIRE/FUEL_LEAK tick in `RoundManager._process_crits`; RATTLED stresses in `begin_round`;
+  system crits pin `disabled_systems=999`. TORPEDOES guarantee a full-table crit if shields=0.
+- **Objective system** (`Objective.gd`): DESTROY_ALL / SURVIVE_ROUNDS / REACH_EDGE / PROTECT /
+  HOLD_POSITION; `RoundManager.set_objective`; `game_ended(msg,color,won)`. Any `is_objective`
+  hull destroyed → LOSE.
+- **Advancing Map** (`ManeuverSystem.configure_danger/advance_danger/is_in_danger`): a leading
+  edge sweeps along `danger_axis` each EVALUATION; ships behind take 1 hull (bypass). Mission
+  data: `advancing`, `scroll_axis`, `scroll_speed_px`. On advancing missions the Engine IS the
+  zone — `current_enemies()` skips the static capital hull/turrets. M4/M11/M12 use it.
+- **Formation Lock** (`Formation.gd`, PlanningStrip): LOCK button snaps nearby friendlies into
+  1 Lead + 2 Wings (highest skill = lead); wings mirror the lead's bearing+speed (clamped to
+  their dial). Chain fire: lead hit → wings in arc get a free cannon shot in the same volley.
+- **Campaign is linear "THE LONG RETREAT"** (3 tutorials + 12 missions). Mission-deck engine
+  EXISTS (`deck_mode`/`draw_mission_hand`/`pick_mission_from_hand`) but defaults OFF (linear).
+  Eject roll → hollowing, Distance, role-based comms, 3 endings. Save is `version: 2`
+  (now also persists `deck_mode`/`mission_deck`/`fuel_leak`-per-pilot; older saves reset).
+- **Assets:** repo has only `ship_player.png` + `ship_ai.png` (+ reserves). Per-class sprites and
+  `ship_large_hull.png` do NOT exist — all classes reuse those two, scaled (3× small, 5× large).
 - **In-repo status doc:** `dogfight_game_state.md` (git-tracked) mirrors this and is kept current.
-- NOT built: crits/torpedoes (32-35), HOTAC AI/swerve (36-39), mission deck (40-41), advancing
-  map (42-43), formation lock (44-45).
+- **Not interactively playtested** (godot MCP sends no input): all systems verified by clean
+  compile + booting MainMenu AND booting directly into M4 (advancing mission) with no runtime
+  errors. Crit rolls, chain fire, danger-zone catching, and formation mirroring are code-verified
+  but a full played-to-completion pass is the outstanding manual check.
 
 ---
 

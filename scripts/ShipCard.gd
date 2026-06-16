@@ -2,6 +2,7 @@ extends PanelContainer
 
 signal card_clicked(ship: Ship)
 signal selection_changed
+signal formation_toggled(ship: Ship)
 
 @onready var _name_label: Label = $Margin/VBox/NameLabel
 @onready var _maneuver_label: Label = $Margin/VBox/ManeuverLabel
@@ -10,6 +11,7 @@ signal selection_changed
 
 var ship: Ship = null
 var _stress_tween: Tween = null
+var _form_btn: Button = null
 
 
 func setup(s: Ship) -> void:
@@ -19,8 +21,20 @@ func setup(s: Ship) -> void:
 	if ship.selected_action == "":
 		ship.selected_action = "FOCUS"
 	_populate_actions()
+	_build_formation_button()
 	_change_btn.pressed.connect(func(): card_clicked.emit(ship))
 	refresh()
+
+
+# A LOCK toggle the player uses to form/break a wing formation with nearby ships.
+func _build_formation_button() -> void:
+	_form_btn = Button.new()
+	_form_btn.add_theme_font_size_override("font_size", 11)
+	_form_btn.custom_minimum_size = Vector2(0, 22)
+	_form_btn.focus_mode = Control.FOCUS_NONE
+	_form_btn.pressed.connect(func(): formation_toggled.emit(ship))
+	$Margin/VBox.add_child(_form_btn)
+	$Margin/VBox.move_child(_form_btn, $Margin/VBox.get_child_count() - 1)
 
 
 func _populate_actions() -> void:
@@ -130,7 +144,35 @@ func refresh() -> void:
 				_:
 					btn.disabled = stressed
 
+	_refresh_formation_ui()
+
 	_update_stress_border(stressed or ship.ion_tokens > 0 or not ship.disabled_systems.is_empty())
+
+
+# Show the ship's formation role and what the LOCK button will do.
+func _refresh_formation_ui() -> void:
+	if _form_btn == null:
+		return
+	match ship.formation_role:
+		"LEAD":
+			_form_btn.text = "◆ LEAD — break"
+			_form_btn.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+			_maneuver_label.text += "   ◆LEAD"
+		"WING":
+			_form_btn.text = "◇ WING — break"
+			_form_btn.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+			# Wings inherit the lead's maneuver; their card reflects "following".
+			if ship.selected_maneuver != null:
+				_maneuver_label.text = "↳ following lead: " + ship.selected_maneuver.bearing.replace("_", " ") + " " + str(ship.selected_maneuver.speed)
+			else:
+				_maneuver_label.text = "↳ following lead"
+			_maneuver_label.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
+		_:
+			_form_btn.text = "LOCK ▲"
+			_form_btn.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
+	# Wings don't choose their own maneuver — the lead drives them.
+	_change_btn.disabled = _change_btn.disabled or ship.formation_role == "WING"
+	_form_btn.disabled = ship.is_destroyed or ship.escaped
 
 
 func _ion_note() -> String:

@@ -118,6 +118,21 @@ func _evaluate() -> void:
 
 	await get_tree().create_timer(0.3).timeout
 
+	# Advancing Map: the Danger Zone edge sweeps forward, catching stragglers.
+	# 1 hull (shield-bypass) per round behind the leading edge; destroyed when hull runs out.
+	if ManeuverSystem.danger_active:
+		ManeuverSystem.advance_danger()
+		for ship in ships:
+			var sd: Ship = ship as Ship
+			if sd.is_destroyed or not sd.is_targetable:
+				continue
+			if ManeuverSystem.is_in_danger(sd.global_position):
+				sd.hull -= 1
+				sd.flash_hull()
+				if sd.hull <= 0:
+					sd.is_destroyed = true
+					sd.destroy_ship()
+
 	# Crit ticks: persistent damage effects fire each EVALUATION.
 	for ship in ships:
 		_process_crits(ship as Ship)

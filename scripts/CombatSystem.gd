@@ -235,6 +235,14 @@ func pick_rear_target(shooter: Ship, ships: Array) -> Ship:
 	return best
 
 
+# Formation chain-fire shot: a coordinated follow-up cannon burst (1 dmg, no ammo or
+# cooldown side-effects) so a wing's primary weapon isn't double-spent. Free attack.
+func _build_chain_shot(wing: Ship, target: Ship) -> Array:
+	if wing.weapons_disabled():
+		return []
+	return [{"chance": calculate_hit_chance(wing, target, wing.attack), "damage": 1, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": Weapon.Type.CANNONS}]
+
+
 # Rear turret shot: fixed TURRET (2 dmg, shield-bypass), on its own cooldown.
 func _build_rear_shots(attacker: Ship, target: Ship) -> Array:
 	if target == null or attacker.rear_cooldown > 0 or attacker.weapons_disabled():
@@ -334,6 +342,36 @@ func run_combat(ships: Array) -> void:
 		for shot in e.shots:
 			shot.hit = resolve_shot(shot.chance)
 
+	# Formation CHAIN FIRE: if a lead's forward shot HIT, each wing in arc of the SAME
+	# target gets a free follow-up. Resolved here (after pass 1, before damage) so the
+	# whole volley still applies simultaneously.
+	var chain: Array = []
+	for e in engagements:
+		if e.get("is_rear", false) or e.get("is_chain", false) or e.target == null:
+			continue
+		var lead: Ship = e.shooter
+		if lead.formation_role != "LEAD" or lead.formation == null:
+			continue
+		var lead_hit: bool = false
+		for shot in e.shots:
+			if shot.hit:
+				lead_hit = true
+		if not lead_hit:
+			continue
+		for w in lead.formation.wings:
+			var wing: Ship = w as Ship
+			if wing == null or wing.is_destroyed or not wing.is_targetable:
+				continue
+			if not ManeuverSystem.is_in_firing_arc(wing, e.target):
+				continue
+			var cshots: Array = _build_chain_shot(wing, e.target)
+			for shot in cshots:
+				shot.hit = resolve_shot(shot.chance)
+			if not cshots.is_empty():
+				chain.append({"shooter": wing, "target": e.target, "shots": cshots, "used_lock": false, "is_chain": true})
+	for ce in chain:
+		engagements.append(ce)
+
 	# Draw shots simultaneously
 	for e in engagements:
 		if e.target == null:
@@ -367,6 +405,8 @@ func run_combat(ships: Array) -> void:
 	for e in engagements:
 		if e.shots.is_empty():
 			continue
+		if e.get("is_chain", false):
+			continue   # free follow-up — no weapon cooldown
 		if e.get("is_rear", false):
 			e.shooter.rear_cooldown = CAPITAL_TURRET_COOLDOWN
 			continue

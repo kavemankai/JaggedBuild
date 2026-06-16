@@ -13,6 +13,15 @@ var arena_size: Vector2 = Vector2(DEFAULT_ARENA_WIDTH, DEFAULT_ARENA_HEIGHT)
 # Set per-battle by Main from mission data; defaults to all WALL (legacy box).
 var edges: Dictionary = {"top": "WALL", "bottom": "WALL", "left": "WALL", "right": "WALL"}
 
+# --- Advancing Map / Danger Zone (Gate 42-43) ---
+# A leading edge (perpendicular to danger_axis) sweeps forward each EVALUATION; ships
+# whose projection falls behind it are caught. danger_axis is the direction the squad
+# flees toward (default up). All world-space danger checks read these per-battle fields.
+var danger_active: bool = false
+var danger_axis: Vector2 = Vector2(0.0, -1.0)
+var danger_speed: float = 0.0          # px the leading edge advances per EVALUATION
+var danger_pos: float = -INF           # leading-edge projection onto danger_axis
+
 const MAX_RANGE: float = 500.0
 const RANGE_CLOSE: float = 167.0
 const RANGE_MEDIUM: float = 333.0
@@ -106,8 +115,55 @@ func get_maneuver_color(bearing: String) -> String:
 
 # Set by Main at battle start from mission data (per-battle, so size never leaks
 # between missions). Defaults restore 1600x900 when a mission omits dimensions.
+# Also clears any prior Danger Zone so a non-advancing mission starts clean.
 func set_arena(size: Vector2) -> void:
 	arena_size = size
+	danger_active = false
+	danger_pos = -INF
+
+
+# Advancing Map setup (per-battle). axis = direction the squad flees toward.
+func configure_danger(active: bool, axis: Vector2, speed: float) -> void:
+	danger_active = active
+	danger_axis = axis.normalized() if axis.length() > 0.0 else Vector2(0.0, -1.0)
+	danger_speed = speed
+	# Start the edge just behind the trailing arena corner so nothing's caught at spawn.
+	danger_pos = _trailing_projection() - 1.0
+
+
+# Minimum projection of the four arena corners onto danger_axis (the trailing side).
+func _trailing_projection() -> float:
+	var corners: Array = [Vector2(0, 0), Vector2(arena_size.x, 0),
+						   Vector2(0, arena_size.y), arena_size]
+	var lo: float = INF
+	for c in corners:
+		lo = minf(lo, (c as Vector2).dot(danger_axis))
+	return lo
+
+
+# Advance the Danger Zone edge one step (called each EVALUATION on advancing maps).
+func advance_danger() -> void:
+	if danger_active:
+		danger_pos += danger_speed
+
+
+# True if a position has fallen behind the advancing leading edge.
+func is_in_danger(pos: Vector2) -> bool:
+	return danger_active and pos.dot(danger_axis) < danger_pos
+
+
+# Two endpoints of the leading edge line, for drawing. Handles the common
+# axis-aligned cases (vertical sweep = horizontal line, horizontal sweep = vertical).
+func danger_line_points() -> Array:
+	if not danger_active:
+		return []
+	if absf(danger_axis.y) >= absf(danger_axis.x):
+		# Vertical sweep: edge is a horizontal line at y = danger_pos / axis.y.
+		var y: float = danger_pos / danger_axis.y
+		return [Vector2(0.0, y), Vector2(arena_size.x, y)]
+	else:
+		var x: float = danger_pos / danger_axis.x
+		return [Vector2(x, 0.0), Vector2(x, arena_size.y)]
 
 
 # Reset to all-WALL, then apply mission overrides (per-battle, so no leak).

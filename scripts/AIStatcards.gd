@@ -1,5 +1,7 @@
 extends Node  # not an autoload — static factory only
 
+const AIStatcard := preload("res://scripts/AIStatcard.gd")
+
 # HOTAC-style maneuver tables. Keys: range band × bearing zone → bearing choices.
 # Range bands: CLOSE / MEDIUM / LONG / OUT
 # Bearing zones: BULLSEYE / FRONT / FRONT_SIDE / REAR_SIDE / REAR

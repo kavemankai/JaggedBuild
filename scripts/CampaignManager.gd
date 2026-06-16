@@ -151,7 +151,10 @@ func engine_present() -> bool:
 func current_enemies() -> Array:
 	var m: Dictionary = current_mission()
 	var enemies: Array = (m.get("enemies", []) as Array).duplicate()
-	if engine_present():
+	# On advancing maps the Threshing Engine IS the sweeping Danger Zone — its hull and
+	# turrets are not spawned (they'd sit in the squad's escape path). Otherwise the
+	# Engine is the static capital set-piece (hull bar + destroyable turrets).
+	if engine_present() and not m.get("advancing", false):
 		var turrets: int = int(m.get("engine_turrets", 2))
 		enemies = _engine_specs(turrets) + enemies
 	return enemies
@@ -224,6 +227,9 @@ func get_missions() -> Array:
 		{
 			"id": "M4", "name": "THRESHING", "act": 1,
 			"objective": {"type": "SURVIVE_ROUNDS", "rounds": 5}, "engine": true, "engine_turrets": 2,
+			# Advancing map: the Engine's threshing edge sweeps up from behind. Flee forward.
+			"advancing": true, "scroll_axis": [0.0, -1.0], "scroll_speed_px": 60.0,
+			"arena_width": 1600.0, "arena_height": 1400.0, "edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("FANG", 3, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
 				_enemy("FANG", 3, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
@@ -298,6 +304,9 @@ func get_missions() -> Array:
 		{
 			"id": "M11", "name": "THE CORRIDOR", "act": 3,
 			"objective": {"type": "SURVIVE_ROUNDS", "rounds": 6}, "engine": true, "engine_turrets": 3,
+			# The corridor narrows as the Engine's edge bears down — faster sweep, taller run.
+			"advancing": true, "scroll_axis": [0.0, -1.0], "scroll_speed_px": 70.0,
+			"arena_width": 1600.0, "arena_height": 1600.0, "edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("FANG", 4, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
 				_enemy("FANG", 4, "MARKSMAN", "BURST", 3, 2, 3, 3, [0.5, 0.2, 0.35], "enemy_assault"),
@@ -307,6 +316,9 @@ func get_missions() -> Array:
 		{
 			"id": "M12", "name": "THE LONG RETREAT", "act": 3, "finale": true,
 			"objective": {"type": "SURVIVE_ROUNDS", "rounds": 6}, "engine": true, "engine_turrets": 3,
+			# The finale run: the Engine's edge sweeps at its hardest. Make the jump.
+			"advancing": true, "scroll_axis": [0.0, -1.0], "scroll_speed_px": 80.0,
+			"arena_width": 1600.0, "arena_height": 1700.0, "edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("VIPER", 4, "MARKSMAN", "ION", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),
 				_enemy("VIPER", 4, "EVASIVE", "BURST", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),

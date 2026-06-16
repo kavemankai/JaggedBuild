@@ -1,7 +1,8 @@
-class_name AIStatcard
 extends Resource
 
 # HOTAC-derived statcard for one enemy ship type.
+# No class_name — consumers preload it (avoids the class-registry reload race that bit
+# Objective.gd), same pattern as Objective.gd / Formation.gd.
 # Step 1: target_priority — list of rules, first valid wins.
 #   "nearest_enemy", "locked_target", "lowest_hull", "objective"
 @export var target_priority: Array[String] = ["nearest_enemy"]

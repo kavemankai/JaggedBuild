@@ -61,6 +61,14 @@ func _ready() -> void:
 	ManeuverSystem.set_arena(Vector2(aw, ah))
 	ManeuverSystem.set_edges(mission.get("edges", {}))
 
+	# Advancing Map (Gate 42-43): a Danger Zone sweeps forward each round. The Threshing
+	# Engine's leading edge — fall behind it and you're caught. Mission data drives it.
+	if mission.get("advancing", false):
+		var axis_arr: Array = mission.get("scroll_axis", [0.0, -1.0])
+		var axis: Vector2 = Vector2(float(axis_arr[0]), float(axis_arr[1]))
+		var speed: float = float(mission.get("scroll_speed_px", 60.0))
+		ManeuverSystem.configure_danger(true, axis, speed)
+
 	# Background spans the whole arena (not just the legacy 1600x900 screen).
 	var arena_rect: ColorRect = $Arena
 	arena_rect.size = ManeuverSystem.arena_size
@@ -403,6 +411,7 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	_draw_edges()
+	_draw_danger_zone()
 	for i in range(_ships.size()):
 		for j in range(i + 1, _ships.size()):
 			var a: Ship = _ships[i] as Ship
@@ -434,6 +443,35 @@ func _draw_edges() -> void:
 				draw_line(pts[0], pts[1], Color(0.55, 0.55, 0.6, 0.8), 5.0)
 			_:  # WALL
 				draw_line(pts[0], pts[1], Color(0.8, 0.25, 0.2, 0.5), 3.0)
+
+
+# The advancing Danger Zone: a bright leading edge with a hazard fill behind it
+# (the consumed space). Telegraphs the sweep so the player flees forward in time.
+func _draw_danger_zone() -> void:
+	if not ManeuverSystem.danger_active:
+		return
+	var line: Array = ManeuverSystem.danger_line_points()
+	if line.size() < 2:
+		return
+	var a: Vector2 = line[0]
+	var b: Vector2 = line[1]
+	var arena: Vector2 = ManeuverSystem.arena_size
+	# Fill the trailing (caught) side. For the default upward sweep, that's below the line.
+	var axis: Vector2 = ManeuverSystem.danger_axis
+	var fill_pts := PackedVector2Array()
+	if absf(axis.y) >= absf(axis.x):
+		var y: float = a.y
+		var caught_y: float = arena.y if axis.y < 0.0 else 0.0
+		fill_pts = PackedVector2Array([Vector2(0, y), Vector2(arena.x, y),
+									   Vector2(arena.x, caught_y), Vector2(0, caught_y)])
+	else:
+		var x: float = a.x
+		var caught_x: float = arena.x if axis.x < 0.0 else 0.0
+		fill_pts = PackedVector2Array([Vector2(x, 0), Vector2(x, arena.y),
+									   Vector2(caught_x, arena.y), Vector2(caught_x, 0)])
+	draw_colored_polygon(fill_pts, Color(0.8, 0.15, 0.1, 0.18))
+	draw_line(a, b, Color(1.0, 0.35, 0.2, 0.95), 6.0)
+	draw_line(a, b, Color(1.0, 0.5, 0.3, 0.4), 18.0)
 
 
 func _on_resolution_started() -> void:
