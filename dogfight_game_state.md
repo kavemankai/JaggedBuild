@@ -587,6 +587,72 @@ reuses the existing player/AI sprite since no large sprite asset was added).
 
 ---
 
+## Crits, HOTAC AI, Mission Deck, Advancing Map, Formation Lock (Gates 32-46)
+
+**ALL 46 gates built (2026-06-16).** Boot-verified (MainMenu + direct M4 advancing boot).
+
+### Critical Hit System (32-35)
+- `CombatSystem._apply_crit`: shields INSULATE — crits only land on hull hits (or a
+  guaranteed torpedo crit). `CRIT_CHANCE_BASE 0.35`. 10 effects in 7 weapon-typed tables
+  (`CRITS_CANNONS/BURST/HEAVY/ION/TURRET/MISSILES` + `ALL_CRITS` for torpedoes). Shot dicts
+  carry `crit_guaranteed` + `weapon_type`.
+- Immediate: DIRECT_HIT (+1 hull), STRUCTURAL_DAMAGE (−1 attack). Ticking: HULL_BREACH /
+  CONSOLE_FIRE (50% self-extinguish) / FUEL_LEAK each EVALUATION (`RoundManager._process_crits`);
+  RATTLED (+1 stress) in `begin_round`; SENSORS_FRIED/POWER_REGULATOR/WEAPONS_FAILURE/
+  DAMAGED_ENGINE pin `disabled_systems=999` (permanent until between-mission repair).
+- **TORPEDOES** (`Weapon.Type.TORPEDOES`): 5 dmg, 1 ammo, needs lock, guarantees a full-table
+  crit if target shields=0. `Ship.torpedoes_ammo`, `Ship.active_crits`/`has_crit`/`add_crit`.
+- Fuel Leak persists to the next campaign mission: `record_battle` writes `entry["fuel_leak"]`,
+  `Main._apply_spec` restores it; cleared on death and at mission end (all other crits clear).
+
+### HOTAC Statcard AI (36-39)
+- `AIStatcard.gd` (NO class_name — preloaded const, registry race) + `AIStatcards.gd` factory
+  (`for_class()`: enemy_fighter/scout/assault/bulk_cruiser). `AIController` rewritten to the
+  HOTAC 4-step (`_hotac_target`→`_hotac_maneuver`→`_hotac_action`→attack): range bands
+  CLOSE/MEDIUM/LONG/OUT × 5 bearing zones (BULLSEYE/FRONT/FRONT_SIDE/REAR_SIDE/REAR), stress
+  table, fleeing-target band shift. Ionized→1-straight+Focus. Target modes ATTACK / STRIKE
+  (pursue is_objective) / FLEE (fastest straight) / ESCORT.
+- **Heuristic scorer KEPT as fallback** (`_score_state`/`_highest_threat`) for ships without a
+  statcard — capital turrets, and most current enemies (statcard matched via `statcard_class`
+  meta, not yet set on spawn). Both paths coexist.
+- **HOTAC Swerve** (`CollisionHandler.resolve_bump`): on overlap, try BANK then TURN 45° each
+  direction at the same speed; if a swerve clears the blocker and stays in bounds, take it;
+  else execute original + truncate to last safe point. `was_bumped` set either way.
+
+### Mission Deck + Eject (40-41)
+- `deck_mode` (default FALSE = linear LONG RETREAT) + `mission_deck`/`mission_hand`,
+  `draw_mission_hand()`/`pick_mission_from_hand()`. `_elite()` enemy-ace factory.
+- Eject roll in `_handle_casualty`: nerve-based survival (+0.3 on a won mission); succeed →
+  injured (rests a mission), fail → KIA + drone hollowing. Commander always SAR-recovered.
+- Save bumped to persist `deck_mode`/`mission_deck` (still `version: 2`; older saves reset).
+
+### Advancing Map / Danger Zone (42-43)
+- `ManeuverSystem.configure_danger(active, axis, speed)` / `advance_danger()` / `is_in_danger(pos)`
+  / `danger_line_points()`. A leading edge ⊥ `danger_axis` sweeps `danger_speed` px each
+  EVALUATION (`RoundManager`); ships behind take 1 hull (shield bypass), destroyed at 0.
+  `set_arena` clears danger per-battle. `Main` configures from mission `advancing`/`scroll_axis`/
+  `scroll_speed_px`, draws the hazard fill + bright leading edge. AI avoids it (`_score_state` −800).
+- **Forward Wall** = top ESCAPE edge (existing per-edge system).
+
+### Formation Lock + Chain Fire (44-45)
+- `Formation.gd` (RefCounted, NO class_name, preloaded): 1 Lead + up to 2 Wings, `is_valid()`
+  (lead alive + ≥1 wing within 190px). `Ship.formation`/`formation_role`.
+- LOCK button on `ShipCard` (`formation_toggled`). `PlanningStrip` snaps all friendlies within
+  190px into one formation (highest skill = lead); wings mirror the lead's bearing+speed clamped
+  to their own dial (`_legal_for`, never RED while stressed). Wing cards show "following lead",
+  can't open the selector. `_apply_formations` runs each refresh; invalid formations dissolve.
+- **Chain fire**: after pass-1 hit resolution, if a lead's forward shot HIT, each wing in arc of
+  the SAME target gets a free 1-dmg cannon follow-up (`_build_chain_shot` — no ammo/cooldown
+  side-effects), appended to the engagements before the draw so the volley stays simultaneous.
+
+### Integration (46)
+- M4 (60px), M11 (70px), M12 (80px) wired to the advancing map (taller arenas 1400/1600/1700,
+  top ESCAPE). On advancing missions `current_enemies()` SKIPS the static capital hull + turrets —
+  the sweeping Danger Zone IS the Threshing Engine (no turrets in the escape path). MainMenu
+  warning text adapts. Verified booting into M4 with no runtime errors.
+
+---
+
 ## Code Audit (2026-06-14) — findings + fixes
 
 Audited per `dogfight_code_audit_framework.md` (13 sections). Foundation verdict:
@@ -613,11 +679,13 @@ generated files, Godot-4 idioms throughout.
 ```json
 {
   "version": 2,
-  "roster": [ /* 7 pilot spec dicts incl commander + drones */ ],
+  "roster": [ /* 7 pilot spec dicts incl commander + drones; entry["fuel_leak"] persists a crit */ ],
   "mission_index": 0,
   "distance": 50.0,
   "fallen": [ /* dead veteran callsigns */ ],
-  "skirmish_record": {"w": 0, "l": 0}
+  "skirmish_record": {"w": 0, "l": 0},
+  "deck_mode": false,
+  "mission_deck": [ /* remaining mission indices when deck_mode is on */ ]
 }
 ```
 
