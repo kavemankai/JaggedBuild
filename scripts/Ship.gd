@@ -48,6 +48,7 @@ var torpedoes_ammo: int = 0  # 1 when weapon is TORPEDOES, set in apply_spec
 var upgrade: String = ""
 var veteran_stress_blocked: bool = false
 var escaped: bool = false
+var is_drone: bool = false
 
 # Large ship class
 var collision_radius: float = 40.0

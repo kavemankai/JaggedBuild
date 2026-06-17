@@ -16,6 +16,37 @@ var _camera: Node = null        # CameraRig; clicking a card focuses it on the s
 var _formations: Array = []     # active Formation objects (player wing-locks)
 
 
+func _ready() -> void:
+	_apply_style()
+
+
+func _apply_style() -> void:
+	# Panel background + top border
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = UIConstants.COLOR_BG_PANEL
+	panel_style.border_color = UIConstants.COLOR_CYAN
+	panel_style.border_width_top = UIConstants.BORDER_W
+	$Panel.add_theme_stylebox_override("panel", panel_style)
+
+	# ConfirmAll button — styled in refresh(); initial inactive state
+	_apply_confirm_btn_style(false)
+
+
+func _apply_confirm_btn_style(ready: bool) -> void:
+	var btn_style := StyleBoxFlat.new()
+	btn_style.bg_color = UIConstants.COLOR_BG_PANEL
+	btn_style.border_color = UIConstants.COLOR_CYAN if ready else UIConstants.COLOR_INACTIVE
+	btn_style.set_border_width_all(UIConstants.BORDER_W_PRI)
+	btn_style.set_corner_radius_all(2)
+	_confirm_btn.add_theme_stylebox_override("normal", btn_style)
+	_confirm_btn.add_theme_stylebox_override("disabled", btn_style)
+	_confirm_btn.add_theme_font_override("font", UIConstants.FONT_UI_BOLD)
+	_confirm_btn.add_theme_font_size_override("font_size", UIConstants.SIZE_BODY)
+	_confirm_btn.add_theme_color_override("font_color",
+		UIConstants.COLOR_WHITE if ready else UIConstants.COLOR_INACTIVE)
+	_confirm_btn.add_theme_color_override("font_disabled_color", UIConstants.COLOR_INACTIVE)
+
+
 func set_camera(cam: Node) -> void:
 	_camera = cam
 
@@ -207,7 +238,8 @@ func refresh() -> void:
 			missing += 1
 
 	_confirm_btn.disabled = missing > 0
-	_confirm_btn.text = "CONFIRM ALL" if missing == 0 else "%d ship(s) need orders" % missing
+	_confirm_btn.text = "CONFIRM ALL" if missing == 0 else "%d SHIPS NEED ORDERS" % missing
+	_apply_confirm_btn_style(missing == 0)
 
 	for card in _cards:
 		card.refresh()

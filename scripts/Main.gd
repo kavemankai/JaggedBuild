@@ -401,6 +401,8 @@ func _apply_spec(ship: Ship, spec: Dictionary, skip_passives: bool = false) -> v
 	ship.torpedoes_ammo = 1 if w.weapon_type == Weapon.Type.TORPEDOES else 0
 	ship.attack_base = int(spec.get("attack", 3))
 
+	ship.is_drone = spec.get("is_drone", false)
+
 	if spec.has("accent"):
 		var a: Array = spec["accent"]
 		ship.accent_color = Color(a[0], a[1], a[2], 1.0)

@@ -26,7 +26,24 @@ const ICONS_DISRUPTION := preload("res://Demo_assets/System Disruption.png")
 const ICONS_CRITS      := preload("res://Demo_assets/Crit Effects.png")
 const ICONS_WEAPONS    := preload("res://Demo_assets/Weapon Types.png")
 
-const ICON_SIZE := Vector2(32, 32)
+# ─── Fonts ───────────────────────────────────────────────────────────────────
+const FONT_UI        := preload("res://assets/fonts/Orbitron-Regular.ttf")
+const FONT_UI_BOLD   := preload("res://assets/fonts/Orbitron-Bold.ttf")
+const FONT_NARR      := preload("res://assets/fonts/Cinzel-Regular.ttf")
+const FONT_NARR_BOLD := preload("res://assets/fonts/Cinzel-Bold.ttf")
+
+# ─── Font sizes ───────────────────────────────────────────────────────────────
+const SIZE_TITLE   := 28
+const SIZE_HEADING := 16
+const SIZE_BODY    := 13
+const SIZE_LABEL   := 11
+const SIZE_TINY    := 9
+
+# ─── Layout ───────────────────────────────────────────────────────────────────
+const PANEL_PAD    := 10
+const BORDER_W     := 1
+const BORDER_W_PRI := 2
+const ICON_SIZE    := Vector2(24, 24)
 
 # ─── AtlasTexture helpers — Action Tokens (2172×724, cell=362) ───────────────
 static func icon_focus() -> AtlasTexture:        return _atlas(ICONS_ACTIONS, 0, 362, 724)

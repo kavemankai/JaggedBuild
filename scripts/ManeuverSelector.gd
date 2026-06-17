@@ -10,6 +10,15 @@ signal closed
 var _ship: Ship = null
 var _ghost: Node2D = null
 
+
+func _ready() -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = UIConstants.COLOR_BG_PANEL
+	style.border_color = UIConstants.COLOR_CYAN
+	style.set_border_width_all(UIConstants.BORDER_W)
+	style.set_corner_radius_all(3)
+	add_theme_stylebox_override("panel", style)
+
 # Canonical column order for dial display.
 const BEARING_ORDER: Array = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT", "K_TURN", "PIVOT"]
 
@@ -75,17 +84,20 @@ func _populate_from_dial() -> void:
 			var btn := Button.new()
 			btn.text = bearing.replace("_", " ") + " " + str(spd)
 			btn.custom_minimum_size = Vector2(120, 32)
+			btn.add_theme_font_override("font", UIConstants.FONT_UI)
+			btn.add_theme_font_size_override("font_size", UIConstants.SIZE_LABEL)
 			_apply_color(btn, color)
 
 			if stressed and color == "RED":
 				btn.disabled = true
-				btn.tooltip_text = "STRESSED — red maneuvers unavailable"
+				btn.modulate = Color(1.0, 1.0, 1.0, 0.3)
+				btn.tooltip_text = "STRESSED"
 			elif engines_out and color != "WHITE":
 				btn.disabled = true
 				btn.tooltip_text = "ENGINES DISABLED — white maneuvers only"
 
 			if _is_selected(bearing, spd):
-				btn.add_theme_color_override("font_color", Color(1.0, 1.0, 0.4, 1.0))
+				btn.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
 				btn.text = "● " + btn.text
 
 			var m := Maneuver.new()
@@ -106,19 +118,22 @@ func _populate_legacy() -> void:
 			var btn := Button.new()
 			btn.text = bearing.replace("_", " ") + " " + str(spd)
 			btn.custom_minimum_size = Vector2(120, 32)
+			btn.add_theme_font_override("font", UIConstants.FONT_UI)
+			btn.add_theme_font_size_override("font_size", UIConstants.SIZE_LABEL)
 
 			var move_color: String = _ship.get_maneuver_color(bearing)
 			_apply_color(btn, move_color)
 
 			if stressed and move_color == "RED":
 				btn.disabled = true
-				btn.tooltip_text = "STRESSED — red maneuvers unavailable"
+				btn.modulate = Color(1.0, 1.0, 1.0, 0.3)
+				btn.tooltip_text = "STRESSED"
 			elif engines_out and move_color != "WHITE":
 				btn.disabled = true
 				btn.tooltip_text = "ENGINES DISABLED — white maneuvers only"
 
 			if _is_selected(bearing, spd):
-				btn.add_theme_color_override("font_color", Color(1.0, 1.0, 0.4, 1.0))
+				btn.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
 				btn.text = "● " + btn.text
 
 			var m := Maneuver.new()
@@ -148,13 +163,41 @@ func _on_pick(maneuver: Maneuver) -> void:
 
 
 func _apply_color(btn: Button, move_color: String) -> void:
+	var cell_style := StyleBoxFlat.new()
+	cell_style.bg_color = UIConstants.COLOR_BG_SECONDARY
+	cell_style.set_corner_radius_all(2)
+	var hover_style := StyleBoxFlat.new()
+	hover_style.set_corner_radius_all(2)
+
 	match move_color:
 		"RED":
-			btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
-			btn.add_theme_color_override("font_hover_color", Color(1.0, 0.55, 0.55, 1.0))
-			btn.add_theme_color_override("font_disabled_color", Color(1.0, 0.3, 0.3, 0.4))
+			cell_style.border_color = UIConstants.COLOR_RED_DIAL
+			cell_style.set_border_width_all(UIConstants.BORDER_W)
+			hover_style.bg_color = Color(UIConstants.COLOR_RED_DIAL, 0.2)
+			hover_style.border_color = UIConstants.COLOR_RED_DIAL
+			hover_style.set_border_width_all(UIConstants.BORDER_W)
+			btn.add_theme_color_override("font_color", UIConstants.COLOR_RED_DIAL)
+			btn.add_theme_color_override("font_hover_color", UIConstants.COLOR_WHITE)
+			btn.add_theme_color_override("font_disabled_color",
+				Color(UIConstants.COLOR_RED_DIAL, 0.4))
 		"GREEN":
-			btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.45, 1.0))
-			btn.add_theme_color_override("font_hover_color", Color(0.55, 1.0, 0.65, 1.0))
+			cell_style.border_color = UIConstants.COLOR_GREEN_DIAL
+			cell_style.set_border_width_all(UIConstants.BORDER_W)
+			hover_style.bg_color = Color(UIConstants.COLOR_GREEN_DIAL, 0.2)
+			hover_style.border_color = UIConstants.COLOR_GREEN_DIAL
+			hover_style.set_border_width_all(UIConstants.BORDER_W)
+			btn.add_theme_color_override("font_color", UIConstants.COLOR_GREEN_DIAL)
+			btn.add_theme_color_override("font_hover_color", UIConstants.COLOR_WHITE)
 		_:
-			pass
+			cell_style.border_color = UIConstants.COLOR_BORDER
+			cell_style.set_border_width_all(UIConstants.BORDER_W)
+			hover_style.bg_color = Color(UIConstants.COLOR_BORDER, 0.3)
+			hover_style.border_color = UIConstants.COLOR_SILVER
+			hover_style.set_border_width_all(UIConstants.BORDER_W)
+			btn.add_theme_color_override("font_color", UIConstants.COLOR_WHITE)
+			btn.add_theme_color_override("font_hover_color", UIConstants.COLOR_CYAN)
+
+	btn.add_theme_stylebox_override("normal", cell_style)
+	btn.add_theme_stylebox_override("hover", hover_style)
+	btn.add_theme_stylebox_override("pressed", hover_style)
+	btn.add_theme_stylebox_override("focus", cell_style)
