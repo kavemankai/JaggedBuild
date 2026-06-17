@@ -22,9 +22,9 @@ var danger_axis: Vector2 = Vector2(0.0, -1.0)
 var danger_speed: float = 0.0          # px the leading edge advances per EVALUATION
 var danger_pos: float = -INF           # leading-edge projection onto danger_axis
 
-const MAX_RANGE: float = 500.0
-const RANGE_CLOSE: float = 167.0
-const RANGE_MEDIUM: float = 333.0
+const MAX_RANGE: float = 552.0
+const RANGE_CLOSE: float = 182.0
+const RANGE_MEDIUM: float = 369.0
 
 const BANK_LATERAL: float = 0.4
 const BANK_FORWARD: float = 0.9

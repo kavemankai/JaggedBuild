@@ -46,6 +46,7 @@ var skirmish_mode: bool = false
 var skirmish_enemies: Array = []
 var skirmish_record: Dictionary = {"w": 0, "l": 0}
 var squad_size: int = 2          # how many player ships deploy (campaign 2; skirmish picks)
+var test_mode: bool = false      # true = MissionSelectMenu launched this battle; skip all campaign state changes
 
 const MAX_SQUAD: int = 6
 
@@ -193,6 +194,7 @@ func get_missions() -> Array:
 		# ----- ACT 1 — DESPERATE -----
 		{
 			"id": "M1", "name": "REARGUARD", "act": 1,
+			"arena_width": 2400.0, "arena_height": 1800.0,
 			"objective": {"type": "SURVIVE_ROUNDS", "rounds": 5}, "engine": false,
 			"enemies": [
 				_enemy("BANDIT", 3, "", "CANNONS", 2, 2, 2, 3, [0.4, 0.3, 0.45]),
@@ -203,6 +205,7 @@ func get_missions() -> Array:
 		},
 		{
 			"id": "M2", "name": "STRAGGLERS", "act": 1,
+			"arena_width": 2400.0, "arena_height": 1800.0,
 			"objective": {"type": "PROTECT"}, "engine": false,
 			"protected": _transport("TRANSPORT GULL"),
 			"enemies": [
@@ -214,6 +217,7 @@ func get_missions() -> Array:
 		},
 		{
 			"id": "M3", "name": "THE NET", "act": 1,
+			"arena_width": 2400.0, "arena_height": 1800.0,
 			"objective": {"type": "REACH_EDGE", "edge_y": 120.0}, "engine": false,
 			"edges": {"top": "ESCAPE"},
 			"enemies": [
@@ -227,9 +231,9 @@ func get_missions() -> Array:
 		{
 			"id": "M4", "name": "THRESHING", "act": 1,
 			"objective": {"type": "SURVIVE_ROUNDS", "rounds": 5}, "engine": true, "engine_turrets": 2,
-			# Advancing map: the Engine's threshing edge sweeps up from behind. Flee forward.
+			# Corridor map: the Engine's threshing edge sweeps up from behind. Flee forward.
 			"advancing": true, "scroll_axis": [0.0, -1.0], "scroll_speed_px": 60.0,
-			"arena_width": 1600.0, "arena_height": 1400.0, "edges": {"top": "ESCAPE"},
+			"arena_width": 8000.0, "arena_height": 1200.0, "edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("FANG", 3, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
 				_enemy("FANG", 3, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
@@ -240,6 +244,7 @@ func get_missions() -> Array:
 		# ----- ACT 2 — THE TURN -----
 		{
 			"id": "M5", "name": "A WAY OUT", "act": 2,
+			"arena_width": 2400.0, "arena_height": 1800.0,
 			"objective": {"type": "PROTECT"}, "engine": false,
 			"protected": _transport("SCOUT WREN-7"),
 			"enemies": [
@@ -251,6 +256,7 @@ func get_missions() -> Array:
 		},
 		{
 			"id": "M6", "name": "BUYING TIME", "act": 2,
+			"arena_width": 2400.0, "arena_height": 1800.0,
 			"objective": {"type": "HOLD_POSITION", "rounds": 5}, "engine": false,
 			"enemies": [
 				_enemy("BANDIT", 3, "", "CANNONS", 2, 2, 2, 3, [0.4, 0.3, 0.45]),
@@ -262,6 +268,7 @@ func get_missions() -> Array:
 		},
 		{
 			"id": "M7", "name": "THE GAUNTLET", "act": 2,
+			"arena_width": 2400.0, "arena_height": 1800.0,
 			"objective": {"type": "REACH_EDGE", "edge_y": 120.0}, "engine": false,
 			"edges": {"top": "ESCAPE"},
 			"enemies": [
@@ -274,6 +281,9 @@ func get_missions() -> Array:
 		{
 			"id": "M8", "name": "RECKONING", "act": 2,
 			"objective": {"type": "SURVIVE_ROUNDS", "rounds": 5}, "engine": true, "engine_turrets": 2,
+			# Corridor map: the Engine has nearly caught up. Danger zone active.
+			"advancing": true, "scroll_axis": [0.0, -1.0], "scroll_speed_px": 60.0,
+			"arena_width": 8000.0, "arena_height": 1200.0, "edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("FANG", 4, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
 			],
@@ -281,6 +291,7 @@ func get_missions() -> Array:
 		},
 		{
 			"id": "M9", "name": "BREATHING ROOM", "act": 2,
+			"arena_width": 2400.0, "arena_height": 1800.0,
 			"objective": {"type": "DESTROY_ALL"}, "engine": false,
 			"enemies": [
 				_enemy("FANG", 3, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
@@ -293,6 +304,7 @@ func get_missions() -> Array:
 		# ----- ACT 3 — THE RUN -----
 		{
 			"id": "M10", "name": "NO TURNING BACK", "act": 3,
+			"arena_width": 2400.0, "arena_height": 1800.0,
 			"objective": {"type": "DESTROY_ALL"}, "engine": false,
 			"enemies": [
 				_enemy("VIPER", 4, "MARKSMAN", "ION", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),
@@ -306,7 +318,7 @@ func get_missions() -> Array:
 			"objective": {"type": "SURVIVE_ROUNDS", "rounds": 6}, "engine": true, "engine_turrets": 3,
 			# The corridor narrows as the Engine's edge bears down — faster sweep, taller run.
 			"advancing": true, "scroll_axis": [0.0, -1.0], "scroll_speed_px": 70.0,
-			"arena_width": 1600.0, "arena_height": 1600.0, "edges": {"top": "ESCAPE"},
+			"arena_width": 8000.0, "arena_height": 1200.0, "edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("FANG", 4, "", "BURST", 3, 2, 2, 3, [0.5, 0.2, 0.35], "enemy_assault"),
 				_enemy("FANG", 4, "MARKSMAN", "BURST", 3, 2, 3, 3, [0.5, 0.2, 0.35], "enemy_assault"),
@@ -318,7 +330,7 @@ func get_missions() -> Array:
 			"objective": {"type": "SURVIVE_ROUNDS", "rounds": 6}, "engine": true, "engine_turrets": 3,
 			# The finale run: the Engine's edge sweeps at its hardest. Make the jump.
 			"advancing": true, "scroll_axis": [0.0, -1.0], "scroll_speed_px": 80.0,
-			"arena_width": 1600.0, "arena_height": 1700.0, "edges": {"top": "ESCAPE"},
+			"arena_width": 8000.0, "arena_height": 1200.0, "edges": {"top": "ESCAPE"},
 			"enemies": [
 				_enemy("VIPER", 4, "MARKSMAN", "ION", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),
 				_enemy("VIPER", 4, "EVASIVE", "BURST", 2, 3, 2, 2, [0.3, 0.5, 0.5], "enemy_scout"),
@@ -457,6 +469,10 @@ func start_skirmish(enemies: Array, player_squad: int = 2) -> void:
 
 # --------------------------------------------------------------- post-battle
 func record_battle(player_ships: Array, won: bool) -> void:
+	if test_mode:
+		# Test mode: skip XP, Distance, injury, hollowing — scene transition is
+		# handled by Main.gd which checks test_mode and returns to MissionSelectMenu.
+		return
 	if skirmish_mode:
 		_record_skirmish(won)
 		return
@@ -817,6 +833,10 @@ func load_campaign() -> bool:
 	deck_mode = bool(data.get("deck_mode", false))
 	mission_deck = data.get("mission_deck", [])
 	return not roster.is_empty()
+
+
+func reset_test_mode() -> void:
+	test_mode = false
 
 
 func reset_campaign() -> void:

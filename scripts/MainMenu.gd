@@ -5,6 +5,7 @@ var _roster_box: VBoxContainer
 
 func _ready() -> void:
 	CampaignManager.skirmish_mode = false
+	CampaignManager.reset_test_mode()
 	_build_ui()
 
 
@@ -69,6 +70,14 @@ func _build_ui() -> void:
 	skirmish_btn.modulate = Color(0.8, 0.8, 1.0)
 	skirmish_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/SkirmishSetup.tscn"))
 	vbox.add_child(skirmish_btn)
+
+	var test_btn := Button.new()
+	test_btn.text = "TEST MISSIONS"
+	test_btn.custom_minimum_size = Vector2(680, 34)
+	test_btn.add_theme_font_size_override("font_size", 14)
+	test_btn.modulate = Color(0.6, 0.75, 1.0)
+	test_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/MissionSelectMenu.tscn"))
+	vbox.add_child(test_btn)
 
 	var reset_btn := Button.new()
 	reset_btn.text = "RESET CAMPAIGN"

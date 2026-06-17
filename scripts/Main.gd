@@ -522,4 +522,7 @@ func _on_game_ended(message: String, color: Color, won: bool) -> void:
 
 func _input(event: InputEvent) -> void:
 	if _game_over and event is InputEventKey and event.pressed and not event.echo:
-		get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
+		if CampaignManager.test_mode:
+			get_tree().change_scene_to_file("res://scenes/MissionSelectMenu.tscn")
+		else:
+			get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
