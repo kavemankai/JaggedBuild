@@ -45,6 +45,10 @@ func setup(s: Ship, p_hud_mode: bool = false) -> void:
 	_build_ion_pips()
 	_build_token_row()
 	if not hud_mode:
+		# Planning strip — hide health rows (they're in the HUD right panel)
+		$Margin/VBox/ShieldRow.visible = false
+		$Margin/VBox/HullRow.visible = false
+		$Margin/VBox/StatusRow.visible = false
 		if ship.selected_action == "":
 			ship.selected_action = "FOCUS"
 		_populate_actions()

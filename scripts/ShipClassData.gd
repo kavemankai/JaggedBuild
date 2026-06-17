@@ -19,7 +19,7 @@ const DialData := preload("res://scripts/DialData.gd")
 # Size class (Large ship system). SMALL is the default fighter footprint.
 @export var size_class: String = "SMALL"        # "SMALL" | "LARGE"
 @export var collision_radius: float = 40.0      # LARGE overrides to 75
-@export var sprite_scale: float = 3.0           # LARGE overrides to 5
+@export var sprite_scale: float = 0.2           # LARGE overrides to 0.33
 @export var has_rear_turret: bool = false       # Large hulls fire a fixed rear TURRET
 @export var is_objective: bool = false          # escort/convoy hull; destroyed = mission fail
 @export var objective_armed: bool = false       # false = unarmed, true = rear turret only

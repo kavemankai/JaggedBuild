@@ -9,7 +9,7 @@ script = ExtResource("1")
 [node name="Body" type="Sprite2D" parent="."]
 texture = ExtResource("2")
 rotation_degrees = 0.0
-scale = Vector2(4, 4)
+scale = Vector2(0.2, 0.2)
 texture_filter = 2
 
 [node name="FiringArc" type="Polygon2D" parent="."]

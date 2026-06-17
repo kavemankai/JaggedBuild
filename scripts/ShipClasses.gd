@@ -83,7 +83,7 @@ static func _hauler() -> ShipClassData:
 	c.has_rear_turret = true
 	c.size_class = "LARGE"
 	c.collision_radius = 75.0
-	c.sprite_scale = 5.0
+	c.sprite_scale = 0.33
 	c.dial = ShipDials.large()
 	c.primary_weapon_options = ["HEAVY", "CANNONS", "ION"]
 	c.upgrade_slots = 1

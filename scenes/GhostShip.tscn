@@ -11,7 +11,7 @@ script = ExtResource("1")
 modulate = Color(1, 1, 1, 0.4)
 texture = ExtResource("2")
 rotation_degrees = 0.0
-scale = Vector2(4, 4)
+scale = Vector2(0.2, 0.2)
 texture_filter = 2
 
 [node name="StressLabel" type="Label" parent="GhostBody"]
