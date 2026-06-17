@@ -14,7 +14,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="DogfightProto"
+config/name="The Long Retreat"
 config/description="Space dogfight movement system prototype — Gate 1"
 config/version="0.1"
 run/main_scene="res://scenes/MainMenu.tscn"
@@ -22,6 +22,8 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
 
+UIConstants="*res://scripts/UIConstants.gd"
+EffectSystem="*res://scripts/EffectSystem.gd"
 ManeuverSystem="*res://scripts/ManeuverSystem.gd"
 RoundManager="*res://scripts/RoundManager.gd"
 CollisionHandler="*res://scripts/CollisionHandler.gd"

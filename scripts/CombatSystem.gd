@@ -372,12 +372,13 @@ func run_combat(ships: Array) -> void:
 	for ce in chain:
 		engagements.append(ce)
 
-	# Draw shots simultaneously
+	# Draw shots simultaneously (projectile sprites via EffectSystem)
 	for e in engagements:
 		if e.target == null:
 			continue
 		for shot in e.shots:
-			_draw_shot(e.shooter.global_position, e.target.global_position, e.shooter.accent_color, shot.hit)
+			var is_missile: bool = int(shot.get("weapon_type", Weapon.Type.CANNONS)) in [Weapon.Type.MISSILES, Weapon.Type.TORPEDOES]
+			EffectSystem.spawn_projectile(e.shooter.global_position, e.target.global_position, shot.hit, is_missile)
 
 	await get_tree().create_timer(SHOT_ANIM_DURATION + 0.1).timeout
 
@@ -389,16 +390,23 @@ func run_combat(ships: Array) -> void:
 			if shot.hit:
 				var was_alive: bool = not e.target.is_destroyed
 				var shields_before: int = e.target.shields
+				var shields_was_disrupted: bool = e.target.shields_disrupted()
+				var bypassing: bool = shot.get("bypass", false)
 				if shot.damage > 0:
-					apply_damage(e.target, shot.damage, shot.get("bypass", false))
+					apply_damage(e.target, shot.damage, bypassing)
 				if shot.ion > 0:
 					e.target.ion_tokens += shot.ion
-				# Crit: only possible on hull-hitting shots (damage > 0, not bypass).
-				if shot.damage > 0 and not shot.get("bypass", false):
+				if shot.damage > 0 and not bypassing:
 					var hit_hull: bool = shields_before <= 0 or e.target.shields_disrupted()
 					_apply_crit(e.target, int(shot.get("weapon_type", Weapon.Type.CANNONS)), shot.get("crit_guaranteed", false), hit_hull)
 				if was_alive and e.target.is_destroyed:
 					e.shooter.kills += 1
+					EffectSystem.spawn_explosion(e.target.global_position)
+				elif shot.damage > 0:
+					if shields_before > 0 and not shields_was_disrupted and not bypassing:
+						EffectSystem.spawn_shield_hit(e.target.global_position)
+					else:
+						EffectSystem.spawn_hull_hit(e.target.global_position)
 
 	# Set cooldown for weapons that just fired. The rear turret has its OWN cooldown so a
 	# Hauler's forward Heavy and rear turret don't share/clobber one timer.
@@ -438,12 +446,3 @@ func run_combat(ships: Array) -> void:
 			sh.target_lock = null
 
 
-func _draw_shot(from: Vector2, to: Vector2, color: Color, is_hit: bool) -> void:
-	var line := Line2D.new()
-	line.width = 3.0
-	line.default_color = Color(color.r, color.g, color.b, 0.9)
-	line.add_point(from)
-	line.add_point(to if is_hit else from.lerp(to, 0.45))
-	get_tree().current_scene.add_child(line)
-	await get_tree().create_timer(SHOT_ANIM_DURATION).timeout
-	line.queue_free()

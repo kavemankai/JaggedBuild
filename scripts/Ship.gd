@@ -74,6 +74,8 @@ var _draw_as_hull: bool = false
 @onready var _firing_arc: Polygon2D = $FiringArc
 @onready var _hit_label: Label = $HitLabel
 var _rear_arc: Polygon2D = null
+var _arc_close_band: Polygon2D = null
+var _arc_medium_band: Polygon2D = null
 
 
 func _ready() -> void:
@@ -102,21 +104,68 @@ func _process(delta: float) -> void:
 func _build_arc_polygon() -> void:
 	var half: float = deg_to_rad(firing_arc_degrees * 0.5)
 	var reach: float = ManeuverSystem.MAX_RANGE * firing_range_mult
+	var close: float = ManeuverSystem.RANGE_CLOSE * firing_range_mult
+	var medium: float = ManeuverSystem.RANGE_MEDIUM * firing_range_mult
+
+	# Outer (LONG) band: RANGE_MEDIUM → MAX_RANGE
+	_firing_arc.polygon = _arc_band_pts(medium, reach, half)
+	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.06)
+	_firing_arc.visible = false
+
+	# Medium band: RANGE_CLOSE → RANGE_MEDIUM
+	if _arc_medium_band == null:
+		_arc_medium_band = Polygon2D.new()
+		_arc_medium_band.name = "ArcMedium"
+		add_child(_arc_medium_band)
+	_arc_medium_band.polygon = _arc_band_pts(close, medium, half)
+	_arc_medium_band.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.12)
+	_arc_medium_band.visible = false
+
+	# Close band: 0 → RANGE_CLOSE
+	if _arc_close_band == null:
+		_arc_close_band = Polygon2D.new()
+		_arc_close_band.name = "ArcClose"
+		add_child(_arc_close_band)
+	_arc_close_band.polygon = _arc_sector_pts(close, half)
+	_arc_close_band.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.20)
+	_arc_close_band.visible = false
+
+
+func _arc_sector_pts(radius: float, half: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	pts.append(Vector2.ZERO)
 	for i in range(13):
-		var t := float(i) / 12.0
+		var t: float = float(i) / 12.0
 		var angle: float = lerp(-half, half, t)
-		pts.append(Vector2(0.0, -1.0).rotated(angle) * reach)
-	_firing_arc.polygon = pts
-	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.12)
-	_firing_arc.visible = false
+		pts.append(Vector2(0.0, -1.0).rotated(angle) * radius)
+	return pts
+
+
+func _arc_band_pts(inner: float, outer: float, half: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in range(13):
+		var t: float = float(i) / 12.0
+		var angle: float = lerp(-half, half, t)
+		pts.append(Vector2(0.0, -1.0).rotated(angle) * outer)
+	for i in range(12, -1, -1):
+		var t: float = float(i) / 12.0
+		var angle: float = lerp(-half, half, t)
+		pts.append(Vector2(0.0, -1.0).rotated(angle) * inner)
+	return pts
 
 
 func show_combat_ui(in_arc: bool, hit_chance: float, status: String = "") -> void:
+	var close_alpha: float = 0.40 if in_arc else 0.20
+	var med_alpha: float   = 0.24 if in_arc else 0.12
+	var long_alpha: float  = 0.12 if in_arc else 0.06
+	if _arc_close_band != null:
+		_arc_close_band.color = Color(accent_color.r, accent_color.g, accent_color.b, close_alpha)
+		_arc_close_band.visible = true
+	if _arc_medium_band != null:
+		_arc_medium_band.color = Color(accent_color.r, accent_color.g, accent_color.b, med_alpha)
+		_arc_medium_band.visible = true
+	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b, long_alpha)
 	_firing_arc.visible = true
-	_firing_arc.color = Color(accent_color.r, accent_color.g, accent_color.b,
-								0.28 if in_arc else 0.08)
 	_hit_label.visible = true
 	if status != "":
 		_hit_label.add_theme_color_override("font_color", Color(0.85, 0.65, 0.2, 1.0))
@@ -131,6 +180,10 @@ func show_combat_ui(in_arc: bool, hit_chance: float, status: String = "") -> voi
 
 func hide_combat_ui() -> void:
 	_firing_arc.visible = false
+	if _arc_close_band != null:
+		_arc_close_band.visible = false
+	if _arc_medium_band != null:
+		_arc_medium_band.visible = false
 	_hit_label.visible = false
 	_hit_label.add_theme_color_override("font_color", accent_color)
 	if _rear_arc != null:
@@ -338,10 +391,12 @@ func pulse_stress() -> void:
 
 func destroy_ship() -> void:
 	_firing_arc.visible = false
+	if _arc_close_band != null:
+		_arc_close_band.visible = false
+	if _arc_medium_band != null:
+		_arc_medium_band.visible = false
 	_hit_label.visible = false
-	var tween := create_tween()
-	tween.tween_property(_body, "modulate", Color(1.0, 0.4, 0.0, 0.0), 0.35)
-	tween.parallel().tween_property(_body, "scale", Vector2(6.0, 6.0), 0.35)
+	_body.visible = false
 
 
 # Crossed an ESCAPE edge: jumped out of the battle. Survived, not destroyed, no longer

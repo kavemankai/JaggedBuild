@@ -3,17 +3,17 @@ extends Node2D
 const SHIP_SCENE: PackedScene = preload("res://scenes/Ship.tscn")
 const GHOST_SCENE: PackedScene = preload("res://scenes/GhostShip.tscn")
 
-# Per-class sprites — player
-const TEX_FIGHTER:     Texture2D = preload("res://assets/ships/ship_player.png")
-const TEX_HEAVY:       Texture2D = preload("res://assets/ships/ship_heavy_grey.png")
-const TEX_INTERCEPTOR: Texture2D = preload("res://assets/ships/ship_fighter_colour.png")
-const TEX_GUNSHIP:     Texture2D = preload("res://assets/ships/ship_gunship_grey.png")
-const TEX_HAULER:      Texture2D = preload("res://assets/ships/ship_cruiser_dark.png")
-# Per-class sprites — enemy
-const TEX_AI_FIGHTER:  Texture2D = preload("res://assets/ships/ship_ai.png")
-const TEX_AI_SCOUT:    Texture2D = preload("res://assets/ships/ship_fighter_grey.png")
-const TEX_AI_ASSAULT:  Texture2D = preload("res://assets/ships/ship_ai_alt.png")
-const TEX_AI_LARGE:    Texture2D = preload("res://assets/ships/ship_cruiser_dark.png")
+# Per-class sprites — player (all classes share the new painted sprite)
+const TEX_FIGHTER:     Texture2D = preload("res://assets/ships/ship_player_fighter.png")
+const TEX_HEAVY:       Texture2D = preload("res://assets/ships/ship_player_fighter.png")
+const TEX_INTERCEPTOR: Texture2D = preload("res://assets/ships/ship_player_fighter.png")
+const TEX_GUNSHIP:     Texture2D = preload("res://assets/ships/ship_player_fighter.png")
+const TEX_HAULER:      Texture2D = preload("res://assets/ships/ship_player_fighter.png")
+# Per-class sprites — enemy (all classes share the new painted sprite)
+const TEX_AI_FIGHTER:  Texture2D = preload("res://assets/ships/ship_enemy_fighter.png")
+const TEX_AI_SCOUT:    Texture2D = preload("res://assets/ships/ship_enemy_fighter.png")
+const TEX_AI_ASSAULT:  Texture2D = preload("res://assets/ships/ship_enemy_fighter.png")
+const TEX_AI_LARGE:    Texture2D = preload("res://assets/ships/ship_enemy_fighter.png")
 const ShipDials := preload("res://scripts/ShipDials.gd")
 const ShipClasses := preload("res://scripts/ShipClasses.gd")
 const Objective := preload("res://scripts/Objective.gd")
@@ -80,9 +80,12 @@ func _ready() -> void:
 		var speed: float = float(mission.get("scroll_speed_px", 60.0))
 		ManeuverSystem.configure_danger(true, axis, speed)
 
+	_add_background()
+
 	# Background spans the whole arena (not just the legacy 1600x900 screen).
 	var arena_rect: ColorRect = $Arena
 	arena_rect.size = ManeuverSystem.arena_size
+	arena_rect.color = Color(0.04, 0.04, 0.12, 0.7)
 
 	_make_spawns(mission, enemy_specs)
 
@@ -159,6 +162,21 @@ func _build_minimap() -> void:
 	map.position = Vector2(1600 - 260 - 16, 900 - 150 - 212)
 	$UI.add_child(map)
 	map.setup(_ships, _camera, _objective, ManeuverSystem.arena_size)
+
+
+func _add_background() -> void:
+	var bg_layer := CanvasLayer.new()
+	bg_layer.layer = -1
+	bg_layer.name = "Background"
+	add_child(bg_layer)
+	var bg := TextureRect.new()
+	bg.texture = preload("res://assets/map_nebular.png")
+	bg.anchor_right = 1.0
+	bg.anchor_bottom = 1.0
+	bg.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg_layer.add_child(bg)
 
 
 func _make_spawns(mission: Dictionary, enemy_specs: Array) -> void:
