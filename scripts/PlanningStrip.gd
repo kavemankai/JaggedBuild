@@ -14,10 +14,14 @@ var _ghosts: Dictionary = {}    # ship -> GhostShip
 var _cards: Array = []
 var _camera: Node = null        # CameraRig; clicking a card focuses it on the ship
 var _formations: Array = []     # active Formation objects (player wing-locks)
+var _targeting_ship: Ship = null  # when set, the next arena click locks this ship's target
+var _hint_label: Label = null
+var _hint_timer: Timer = null
 
 
 func _ready() -> void:
 	_apply_style()
+	_build_hint_ui()
 
 
 func _apply_style() -> void:
@@ -30,6 +34,27 @@ func _apply_style() -> void:
 
 	# ConfirmAll button — styled in refresh(); initial inactive state
 	_apply_confirm_btn_style(false)
+
+
+func _build_hint_ui() -> void:
+	_hint_label = Label.new()
+	_hint_label.name = "RangeHint"
+	_hint_label.visible = false
+	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_label.add_theme_font_override("font", UIConstants.FONT_UI_BOLD)
+	_hint_label.add_theme_font_size_override("font_size", UIConstants.SIZE_TINY)
+	_hint_label.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
+	_hint_label.add_theme_color_override("font_outline_color", UIConstants.COLOR_BG_PRIMARY)
+	_hint_label.add_theme_constant_override("outline_size", 2)
+	_hint_label.position = Vector2(20, 20)
+	add_child(_hint_label)
+	_hint_timer = Timer.new()
+	_hint_timer.one_shot = true
+	_hint_timer.wait_time = 1.8
+	_hint_timer.timeout.connect(func():
+		if _hint_label != null:
+			_hint_label.visible = false)
+	add_child(_hint_timer)
 
 
 func _apply_confirm_btn_style(ready: bool) -> void:
@@ -74,6 +99,7 @@ func _build_cards() -> void:
 		card.card_clicked.connect(_open_selector)
 		card.selection_changed.connect(refresh)
 		card.formation_toggled.connect(_on_formation_toggled)
+		card.targeting_started.connect(_on_targeting_started)
 		_cards.append(card)
 
 
@@ -85,6 +111,27 @@ func reset() -> void:
 		ship.selected_maneuver = null
 		ship.selected_action = "FOCUS"
 	refresh()
+
+
+# --- Target selection (TARGET_LOCK action) -----------------------------------
+# When the player picks TARGET_LOCK on a card, enter targeting mode. The next
+# click on an enemy ship in the arena (within MAX_RANGE) sets the lock target.
+# A click anywhere else cancels targeting.
+func _on_targeting_started(ship: Ship) -> void:
+	_targeting_ship = ship
+	# Clear any pending target so the player sees a fresh targeting state.
+	ship.pending_lock_target = null
+	_show_hint("Click an enemy within 552px to queue a lock")
+	refresh()
+
+
+func _show_hint(text: String) -> void:
+	if _hint_label == null or _hint_timer == null:
+		return
+	_hint_label.text = text
+	_hint_label.visible = true
+	_hint_timer.stop()
+	_hint_timer.start()
 
 
 # --- Formation lock (Gate 44) -----------------------------------------------
@@ -294,3 +341,50 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _selector.visible and event is InputEventMouseButton and event.pressed:
 		if not _selector.get_global_rect().has_point(event.global_position):
 			_selector.close()
+	# Target selection: click an enemy ship in the arena to lock it.
+	# Uses _input (not _unhandled_input) so it fires BEFORE the camera consumes
+	# the click for panning.
+
+
+func _input(event: InputEvent) -> void:
+	if _targeting_ship != null and event is InputEventMouseButton and event.pressed:
+		var click_pos: Vector2 = (event as InputEventMouseButton).global_position
+		get_viewport().set_input_as_handled()
+		_handle_target_click(click_pos)
+
+
+# Find the enemy ship nearest to the click point and within MAX_RANGE of the
+# targeting ship. If found, set the lock; either way, exit targeting mode.
+func _handle_target_click(click_screen: Vector2) -> void:
+	var ship: Ship = _targeting_ship
+	_targeting_ship = null
+	if ship == null or ship.is_destroyed:
+		return
+	# Convert screen click to world position via the camera transform.
+	if _camera == null:
+		return
+	var world_pos: Vector2 = _camera.get_global_mouse_position()
+	# Find the nearest enemy to the click within a reasonable pick radius (60px).
+	var best: Ship = null
+	var best_dist: float = 60.0  # click pick radius
+	for s in get_tree().get_nodes_in_group("ships"):
+		var t: Ship = s as Ship
+		if t == null or t.is_destroyed or t.team == ship.team or not t.is_targetable:
+			continue
+		var d: float = world_pos.distance_to(t.global_position)
+		if d < best_dist:
+			best_dist = d
+			best = t
+	if best != null:
+		var range: float = ship.global_position.distance_to(best.global_position)
+		if range <= ManeuverSystem.MAX_RANGE:
+			ship.pending_lock_target = best
+			_show_hint("Lock queued — activates next round")
+			AudioManager.play_sfx("sfx_confirm")
+		else:
+			_show_hint("Target out of range — locks work within 552px")
+			AudioManager.play_sfx("sfx_error")
+	else:
+		# Click missed all ships — cancel targeting silently.
+		pass
+	refresh()

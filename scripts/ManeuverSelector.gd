@@ -99,8 +99,15 @@ func _populate_from_dial() -> void:
 				btn.mouse_entered.connect(func(): AudioManager.play_sfx("sfx_error"))
 
 			if _is_selected(bearing, spd):
-				btn.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
-				btn.text = "● " + btn.text
+				var sel_style := StyleBoxFlat.new()
+				sel_style.bg_color = Color(UIConstants.COLOR_CYAN, 0.15)
+				sel_style.border_color = UIConstants.COLOR_CYAN
+				sel_style.set_border_width_all(2)
+				sel_style.set_corner_radius_all(2)
+				btn.add_theme_stylebox_override("normal", sel_style)
+				btn.add_theme_stylebox_override("hover", sel_style)
+				btn.add_theme_stylebox_override("focus", sel_style)
+				btn.add_theme_color_override("font_color", UIConstants.COLOR_CYAN)
 
 			var m := Maneuver.new()
 			m.bearing = bearing
@@ -137,8 +144,15 @@ func _populate_legacy() -> void:
 				btn.mouse_entered.connect(func(): AudioManager.play_sfx("sfx_error"))
 
 			if _is_selected(bearing, spd):
-				btn.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
-				btn.text = "● " + btn.text
+				var sel_style := StyleBoxFlat.new()
+				sel_style.bg_color = Color(UIConstants.COLOR_CYAN, 0.15)
+				sel_style.border_color = UIConstants.COLOR_CYAN
+				sel_style.set_border_width_all(2)
+				sel_style.set_corner_radius_all(2)
+				btn.add_theme_stylebox_override("normal", sel_style)
+				btn.add_theme_stylebox_override("hover", sel_style)
+				btn.add_theme_stylebox_override("focus", sel_style)
+				btn.add_theme_color_override("font_color", UIConstants.COLOR_CYAN)
 
 			var m := Maneuver.new()
 			m.bearing = bearing

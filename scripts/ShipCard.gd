@@ -3,6 +3,7 @@ extends PanelContainer
 signal card_clicked(ship: Ship)
 signal selection_changed
 signal formation_toggled(ship: Ship)
+signal targeting_started(ship: Ship)
 
 @onready var _name_label: Label    = $Margin/VBox/NameLabel
 @onready var _shield_bar: ProgressBar = $Margin/VBox/ShieldRow/ShieldBar
@@ -22,6 +23,7 @@ var ship: Ship = null
 var hud_mode: bool = false
 var _stress_tween: Tween = null
 var _form_btn: Button = null
+var _missile_btn: Button = null
 var _panel_style: StyleBoxFlat = null
 var _faction_color: Color = UIConstants.COLOR_INACTIVE
 var _ion_pips: Array = []
@@ -34,6 +36,29 @@ const _TOKEN_DEFS: Array = [
 	["TARGET_LOCK", "target_lock"],
 	["OVERCHARGE",  "overcharge"],
 ]
+
+# Hover descriptions for every icon and button on the card.
+const _TOOLTIPS: Dictionary = {
+	"FOCUS": "Focus token — +15% attack accuracy, -10% incoming accuracy. Consumed each round.",
+	"EVADE": "Evade token — -15% incoming attack accuracy. Consumed each round.",
+	"TARGET_LOCK": "Secondary-weapon lock — used by missiles, torpedoes, and other launched weapons only. Cannons do not need it. Select then click an enemy to lock (within 552px). Takes 1 round: lock acquired this round, missiles fire next round.",
+	"OVERCHARGE": "Overcharge — active ability: +2 effective attack this round. Once per battle.",
+	"FORMATION": "Formation — linked with nearby allies (within 190px) for +1 defence. Lead sets maneuvers; wings follow.",
+	"BOOST": "Boost — execute a free speed-1 straight maneuver before combat.",
+	"ABILITY": "Active ability — OVERCHARGE (+2 attack) or BARREL_ROLL (evade + stress relief). Once per battle.",
+	"MISSILES": "Missiles — fire instead of cannons. Needs an active secondary-weapon lock. Lock takes 1 round to acquire. 4 damage, ignores 1 defence die.",
+	"FORMATION_BTN": "Formation lock — snap to nearby allies (within 190px). Lead sets maneuvers; wings follow. Chain fire if lead hits.",
+	"DIRECT_HIT": "Direct Hit — extra hull damage on top of normal hit.",
+	"HULL_BREACH": "Hull Breach — +1 hull damage every round until repaired.",
+	"STRUCTURAL_DAMAGE": "Structural Damage — attack permanently reduced by 1.",
+	"WEAPONS_FAILURE": "Weapons Failure — cannot fire until repaired between missions.",
+	"DAMAGED_ENGINE": "Damaged Engine — maneuver options restricted until repaired.",
+	"FUEL_LEAK": "Fuel Leak — +1 hull damage every round. Persists between missions!",
+	"ENGINES_DISABLED": "Engines disabled — restricted to white maneuvers only.",
+	"WEAPONS_DISABLED": "Weapons disabled — cannot fire.",
+	"SENSORS_DISABLED": "Sensors disabled — cannot acquire target locks, firing arc hidden.",
+	"SHIELDS_DISRUPTED": "Shields disrupted — incoming fire bypasses shields.",
+}
 
 
 func setup(s: Ship, p_hud_mode: bool = false) -> void:
@@ -53,6 +78,7 @@ func setup(s: Ship, p_hud_mode: bool = false) -> void:
 			ship.selected_action = "FOCUS"
 		_populate_actions()
 		_build_formation_button()
+		_build_missile_button()
 		_change_btn.pressed.connect(func(): card_clicked.emit(ship))
 		_change_btn.pressed.connect(func(): AudioManager.play_sfx("sfx_click"))
 	else:
@@ -141,10 +167,29 @@ func _build_token_row() -> void:
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex_rect.set_meta("action_key", entry[0])
+		tex_rect.tooltip_text = _TOOLTIPS.get(entry[0], "")
 		match entry[1]:
 			"focus":       tex_rect.texture = UIConstants.icon_focus()
 			"evade":       tex_rect.texture = UIConstants.icon_evade()
-			"target_lock": tex_rect.texture = UIConstants.icon_target_lock()
+			"target_lock":
+				tex_rect.texture = UIConstants.icon_target_lock()
+				# Tiny launcher badge so target lock reads as a secondary-weapon lock.
+				var badge_bg := ColorRect.new()
+				badge_bg.color = Color(0.24, 0.16, 0.02, 0.95)
+				badge_bg.custom_minimum_size = Vector2(14, 14)
+				badge_bg.position = Vector2(12, -1)
+				badge_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				badge_bg.tooltip_text = "Launcher lock"
+				var badge := TextureRect.new()
+				badge.texture = UIConstants.icon_missiles()
+				badge.custom_minimum_size = Vector2(10, 10)
+				badge.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				badge.modulate = UIConstants.COLOR_AMBER
+				badge.position = Vector2(2, 2)
+				badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				badge_bg.add_child(badge)
+				tex_rect.add_child(badge_bg)
 			"overcharge":  tex_rect.texture = UIConstants.icon_overcharge()
 		_token_row.add_child(tex_rect)
 	# Formation icon
@@ -154,6 +199,7 @@ func _build_token_row() -> void:
 	form_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	form_icon.texture = UIConstants.icon_formation()
 	form_icon.set_meta("action_key", "FORMATION")
+	form_icon.tooltip_text = _TOOLTIPS.get("FORMATION", "")
 	form_icon.modulate = Color(UIConstants.COLOR_CYAN, 0.0)
 	_token_row.add_child(form_icon)
 
@@ -165,12 +211,50 @@ func _build_formation_button() -> void:
 	_form_btn.add_theme_font_size_override("font_size", UIConstants.SIZE_TINY)
 	_form_btn.custom_minimum_size = Vector2(0, 22)
 	_form_btn.focus_mode = Control.FOCUS_NONE
+	_form_btn.tooltip_text = _TOOLTIPS.get("FORMATION_BTN", "")
 	_form_btn.pressed.connect(func():
 		if ship.formation_role in ["LEAD", "WING"]:
 			AudioManager.play_sfx("sfx_cancel")
 		formation_toggled.emit(ship))
 	$Margin/VBox.add_child(_form_btn)
 	$Margin/VBox.move_child(_form_btn, $Margin/VBox.get_child_count() - 1)
+
+
+# Secondary weapon toggle: MISSILES. Separate from the action group — the player
+# can fire missiles AND take any action in the same round. Visible only when the
+# ship has missile ammo. Requires a target lock to actually fire (acquired via the
+# TARGET_LOCK action in a prior or current round).
+func _build_missile_button() -> void:
+	_missile_btn = Button.new()
+	_missile_btn.text = "MSL"
+	_missile_btn.toggle_mode = true
+	_missile_btn.custom_minimum_size = Vector2(58, 26)
+	_missile_btn.add_theme_font_override("font", UIConstants.FONT_UI)
+	_missile_btn.add_theme_font_size_override("font_size", UIConstants.SIZE_TINY)
+	_missile_btn.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
+	_missile_btn.visible = ship.missiles_ammo > 0
+	_missile_btn.toggled.connect(_on_missile_toggled)
+	_missile_btn.tooltip_text = _TOOLTIPS.get("MISSILES", "")
+	var ammo_lbl := Label.new()
+	ammo_lbl.name = "MissileAmmo"
+	ammo_lbl.text = str(ship.missiles_ammo)
+	ammo_lbl.add_theme_font_override("font", UIConstants.FONT_UI_BOLD)
+	ammo_lbl.add_theme_font_size_override("font_size", 10)
+	ammo_lbl.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
+	ammo_lbl.position = Vector2(42, 5)
+	ammo_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_missile_btn.add_child(ammo_lbl)
+	# Insert right after the action row so it sits with the other controls.
+	var vbox: Container = _action_row.get_parent()
+	var idx: int = _action_row.get_index()
+	vbox.add_child(_missile_btn)
+	vbox.move_child(_missile_btn, idx + 1)
+
+
+func _on_missile_toggled(pressed: bool) -> void:
+	ship.fire_missiles = pressed
+	AudioManager.play_sfx("sfx_click" if pressed else "sfx_cancel")
+	refresh()
 
 
 func _populate_actions() -> void:
@@ -192,8 +276,17 @@ func _populate_actions() -> void:
 		btn.add_theme_font_override("font", UIConstants.FONT_UI)
 		btn.add_theme_font_size_override("font_size", UIConstants.SIZE_TINY)
 		btn.set_meta("action_key", key)
+		btn.tooltip_text = _TOOLTIPS.get(key, "")
 		if key == "ABILITY":
 			btn.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
+		# Cyan highlight when the action is selected (toggled on).
+		var pressed_style := StyleBoxFlat.new()
+		pressed_style.bg_color = Color(UIConstants.COLOR_CYAN, 0.22)
+		pressed_style.border_color = UIConstants.COLOR_CYAN
+		pressed_style.set_border_width_all(3)
+		pressed_style.set_corner_radius_all(2)
+		btn.add_theme_stylebox_override("pressed", pressed_style)
+		btn.add_theme_stylebox_override("hover_pressed", pressed_style)
 		btn.toggled.connect(_on_action_toggled.bind(key))
 		_action_row.add_child(btn)
 
@@ -209,6 +302,10 @@ func _on_action_toggled(pressed: bool, action: String) -> void:
 	for btn in _action_row.get_children():
 		if btn is Button and btn.get_meta("action_key", "") != action:
 			btn.set_pressed_no_signal(false)
+	# When the player picks TARGET_LOCK, enter targeting mode — the next click
+	# on an enemy ship in the arena sets the lock target (within MAX_RANGE).
+	if action == "TARGET_LOCK":
+		targeting_started.emit(ship)
 	selection_changed.emit()
 
 
@@ -294,7 +391,7 @@ func _update_tokens() -> void:
 	var active_keys: Dictionary = {
 		"FOCUS": ship.focus_token,
 		"EVADE": ship.evade_token,
-		"TARGET_LOCK": ship.target_lock != null,
+		"TARGET_LOCK": ship.target_lock != null or ship.pending_lock_target != null,
 		"OVERCHARGE": ship.overcharged,
 		"FORMATION": ship.in_formation,
 	}
@@ -304,6 +401,13 @@ func _update_tokens() -> void:
 			var active: bool = active_keys.get(key, false)
 			if key == "FORMATION":
 				child.modulate = Color(UIConstants.COLOR_CYAN, 1.0 if active else 0.0)
+			elif key == "TARGET_LOCK":
+				if ship.target_lock != null:
+					child.modulate = Color(1.0, 0.15, 0.15, 1.0)
+				elif ship.pending_lock_target != null:
+					child.modulate = Color(1.0, 0.65, 0.15, 0.9)
+				else:
+					child.modulate = Color(1.0, 1.0, 1.0, 0.25)
 			else:
 				child.modulate = Color(1.0, 1.0, 1.0, 1.0 if active else 0.25)
 
@@ -343,6 +447,9 @@ func _update_weapon_label() -> void:
 		elif w.weapon_type == Weapon.Type.TORPEDOES and ship.torpedoes_ammo <= 0:
 			state_text = "EMPTY"
 			state_color = UIConstants.COLOR_INACTIVE
+	# Append missile count as a secondary weapon indicator.
+	if ship.missiles_ammo > 0 and (w == null or w.weapon_type != Weapon.Type.MISSILES):
+		wname += " + MSL x%d" % ship.missiles_ammo
 	_weapon_label.text = "%s %s" % [wname, state_text]
 	_weapon_label.add_theme_color_override("font_color", state_color)
 
@@ -378,6 +485,16 @@ func _update_action_buttons() -> void:
 				"BOOST":       btn.disabled = stressed or ship.engines_disabled()
 				"TARGET_LOCK": btn.disabled = stressed or ship.sensors_disabled()
 				_:             btn.disabled = stressed
+	# Missile button: show current ammo + toggle state + disable if no ammo or no lock.
+	if _missile_btn != null:
+		_missile_btn.visible = ship.missiles_ammo > 0
+		_missile_btn.set_pressed_no_signal(ship.fire_missiles)
+		_missile_btn.disabled = ship.missiles_ammo <= 0 or ship.target_lock == null
+		_missile_btn.modulate = Color(1.0, 1.0, 1.0, 1.0 if not _missile_btn.disabled else 0.55)
+		var ammo_lbl: Label = _missile_btn.get_node_or_null("MissileAmmo") as Label
+		if ammo_lbl != null:
+			ammo_lbl.text = str(ship.missiles_ammo)
+			ammo_lbl.modulate = Color(UIConstants.COLOR_AMBER, 1.0 if not _missile_btn.disabled else 0.45)
 
 
 func _update_crits() -> void:
@@ -401,6 +518,7 @@ func _update_crits() -> void:
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.modulate = UIConstants.COLOR_CRIT
+		tr.tooltip_text = _TOOLTIPS.get(crit_id, crit_id)
 		_crit_row.add_child(tr)
 	if ship.active_crits.size() > 3:
 		var overflow := Label.new()
@@ -432,17 +550,24 @@ func _update_systems() -> void:
 	_last_system_mask = mask
 	for child in _system_row.get_children():
 		child.queue_free()
-	var icons: Array = []
-	if mask & 1: icons.append(UIConstants.icon_engines_disabled())
-	if mask & 2: icons.append(UIConstants.icon_weapons_disabled())
-	if mask & 4: icons.append(UIConstants.icon_sensors_disabled())
-	if mask & 8: icons.append(UIConstants.icon_shields_disrupted())
-	for tex in icons:
+	var icons: Array = [
+		[UIConstants.icon_engines_disabled(), "ENGINES_DISABLED"],
+		[UIConstants.icon_weapons_disabled(), "WEAPONS_DISABLED"],
+		[UIConstants.icon_sensors_disabled(), "SENSORS_DISABLED"],
+		[UIConstants.icon_shields_disrupted(), "SHIELDS_DISRUPTED"],
+	]
+	var active_icons: Array = []
+	if mask & 1: active_icons.append(icons[0])
+	if mask & 2: active_icons.append(icons[1])
+	if mask & 4: active_icons.append(icons[2])
+	if mask & 8: active_icons.append(icons[3])
+	for entry in active_icons:
 		var tr := TextureRect.new()
-		tr.texture = tex
+		tr.texture = entry[0]
 		tr.custom_minimum_size = Vector2(16, 16)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.tooltip_text = _TOOLTIPS.get(entry[1], entry[1])
 		_system_row.add_child(tr)
 
 

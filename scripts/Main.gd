@@ -305,6 +305,10 @@ func _deploy_enemies(specs: Array) -> Array:
 			ship.bearing_options = ["STRAIGHT", "BANK_LEFT", "BANK_RIGHT", "TURN_LEFT", "TURN_RIGHT"]
 			_apply_spec(ship, spec)
 			ship.dial_data = _dial_for_class(spec.get("ship_class", "enemy_fighter"))
+			# Wire the designed HOTAC statcard AI (Gates 36-39) onto this ship so
+			# AIController._statcard_for() resolves it instead of falling back to the
+			# tail-holding heuristic scorer. The class id maps 1:1 to an AIStatcard.
+			ship.set_meta("statcard_class", spec.get("ship_class", "enemy_fighter"))
 			# Large enemies (Bulk Cruiser): bigger footprint + rear turret.
 			if spec.get("size_class", "SMALL") == "LARGE":
 				ship.set_size(5.0, 75.0)
@@ -472,6 +476,26 @@ func _draw() -> void:
 				continue
 			if a.global_position.distance_to(b.global_position) <= CombatSystem.FORMATION_RANGE:
 				draw_line(a.global_position, b.global_position, Color(0.3, 0.8, 1.0, 0.22), 2.0)
+	# Target lock visuals: thick line from locker to locked ship + RED X on the target.
+	# Also shows a dimmer pending lock (target chosen but not yet acquired).
+	for s in _ships:
+		var sh: Ship = s as Ship
+		if sh.is_destroyed:
+			continue
+		# Active lock (acquired last round) — full RED X + thick line.
+		if sh.target_lock != null and not sh.target_lock.is_destroyed:
+			var tp: Vector2 = sh.target_lock.global_position
+			draw_line(sh.global_position, tp, Color(1.0, 0.18, 0.18, 0.7), 4.0)
+			var xs: float = 22.0
+			draw_line(tp - Vector2(xs, xs), tp + Vector2(xs, xs), Color(1.0, 0.12, 0.12, 0.95), 3.5)
+			draw_line(tp - Vector2(xs, -xs), tp + Vector2(xs, -xs), Color(1.0, 0.12, 0.12, 0.95), 3.5)
+		# Pending lock (chosen this round, activates next round) — amber line + X.
+		elif sh.pending_lock_target != null and not sh.pending_lock_target.is_destroyed:
+			var pp: Vector2 = sh.pending_lock_target.global_position
+			draw_line(sh.global_position, pp, Color(1.0, 0.55, 0.1, 0.45), 2.5)
+			var pxs: float = 18.0
+			draw_line(pp - Vector2(pxs, pxs), pp + Vector2(pxs, pxs), Color(1.0, 0.55, 0.1, 0.65), 2.0)
+			draw_line(pp - Vector2(pxs, -pxs), pp + Vector2(pxs, -pxs), Color(1.0, 0.55, 0.1, 0.65), 2.0)
 
 
 # Telegraph edge behaviour so the player never learns it by dying: ESCAPE glows green

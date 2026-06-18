@@ -7,9 +7,11 @@ const AIStatcards := preload("res://scripts/AIStatcards.gd")
 const AIStatcard := preload("res://scripts/AIStatcard.gd")
 
 # Range / bearing thresholds matching ManeuverSystem constants.
-const RANGE_CLOSE: float = 167.0
-const RANGE_MEDIUM: float = 333.0
-const RANGE_MAX: float = 500.0
+# Reference the autoload consts directly so these can never drift again
+# (they had stale 167/333/500 values while ManeuverSystem shipped 182/369/552).
+const RANGE_CLOSE: float = ManeuverSystem.RANGE_CLOSE
+const RANGE_MEDIUM: float = ManeuverSystem.RANGE_MEDIUM
+const RANGE_MAX: float = ManeuverSystem.MAX_RANGE
 
 # Heuristic fallback constants (kept for turrets / legacy ships).
 const PREFERRED_DISTANCE: float = 300.0
@@ -142,9 +144,65 @@ func _hotac_maneuver(ai_ship: Ship, sc: AIStatcard, ships: Array) -> Maneuver:
 		# Fallback: pick any valid non-red bearing.
 		options = _fallback_bearings(ai_ship)
 
-	# Pick a random bearing from options, then find the fastest valid speed for it.
-	var chosen_bearing: String = options[randi() % options.size()]
-	return _best_maneuver_for_bearing(ai_ship, chosen_bearing)
+	# Build a candidate maneuver for each table bearing, then keep only those whose
+	# end-state stays inside the arena and out of the advancing danger zone. HOTAC
+	# tables reason about the target, not walls — without this filter a ship that
+	# turns away from its target flies straight into a wall and self-destructs.
+	var toward: Array = []   # in-bounds candidates that keep facing the target
+	var away: Array = []     # in-bounds candidates that turn away from the target
+	for bearing in options:
+		var mv := _best_maneuver_for_bearing(ai_ship, bearing)
+		var es := ManeuverSystem.compute_end_state(ai_ship.global_position, ai_ship.rotation, mv)
+		if ManeuverSystem.is_out_of_bounds(es["position"]) or ManeuverSystem.is_in_danger(es["position"]):
+			continue
+		var face_dot: float = -2.0
+		if target != null:
+			var fwd: Vector2 = Vector2(0.0, -1.0).rotated(es["rotation"])
+			face_dot = fwd.dot((target.global_position - (es["position"] as Vector2)).normalized())
+		var entry := {"mv": mv, "face": face_dot}
+		if face_dot >= 0.0:
+			toward.append(entry)
+		else:
+			away.append(entry)
+	var pool: Array = toward if not toward.is_empty() else away
+	if pool.is_empty():
+		# Every table option sends us out of bounds — we're cornered. Re-orient
+		# back toward the arena centre instead of flying into the wall.
+		return _evade_edge_maneuver(ai_ship)
+	# Random pick among the surviving in-bounds candidates (the table already
+	# encoded the right bearing for this band/zone; variety keeps it from being
+	# deterministic). Prefer candidates that keep the target in the forward hemisphere.
+	return (pool[randi() % pool.size()]["mv"]) as Maneuver
+
+
+# Cornered against a wall with no in-bounds table option: turn toward the arena
+# centre at the slowest valid speed to re-orient back into play instead of
+# flying into the wall. Falls back to a bank, then a straight-1, if turns are off
+# the dial.
+func _evade_edge_maneuver(ai_ship: Ship) -> Maneuver:
+	# Cornered: every table option leaves the arena. Re-orient back in without
+	# flying into the wall. Try the centre-facing turn at the SLOWEST speed first
+	# (less overshoot), then the opposite turn, then a bank, then straight-1 —
+	# return the first whose end-state actually stays in bounds.
+	var centre: Vector2 = ManeuverSystem.arena_size * 0.5
+	var to_centre: Vector2 = (centre - ai_ship.global_position).normalized()
+	var facing: Vector2 = Vector2(0.0, -1.0).rotated(ai_ship.rotation)
+	var cross: float = facing.x * to_centre.y - facing.y * to_centre.x
+	var toward_bearing: String = "TURN_LEFT" if cross >= 0.0 else "TURN_RIGHT"
+	var away_bearing: String = "TURN_RIGHT" if cross >= 0.0 else "TURN_LEFT"
+	for bearing in [toward_bearing, away_bearing,
+				 "BANK_LEFT" if cross >= 0.0 else "BANK_RIGHT", "STRAIGHT"]:
+		var mv := _slowest_valid_maneuver(ai_ship, bearing)
+		if mv == null:
+			continue
+		var es := ManeuverSystem.compute_end_state(ai_ship.global_position, ai_ship.rotation, mv)
+		if not ManeuverSystem.is_out_of_bounds(es["position"]) and not ManeuverSystem.is_in_danger(es["position"]):
+			return mv
+	# Truly stuck — straight-1 is the only option (may clip the wall, but unavoidable).
+	var fallback := Maneuver.new()
+	fallback.bearing = "STRAIGHT"
+	fallback.speed = 1
+	return fallback
 
 
 # Step 3: action selection via priority cascade.
@@ -205,8 +263,14 @@ func _shift_band_outward(band: String) -> String:
 
 func _best_maneuver_for_bearing(ai_ship: Ship, bearing: String) -> Maneuver:
 	# Find all valid (non-stressed-red) speeds for this bearing on the ship's dial.
+	# When stressed, prefer a GREEN speed (clears stress next resolution) over the
+	# fastest one — otherwise the ship locks itself into the stress table forever
+	# (fastest bank/straight is WHITE, never GREEN, so stress never clears and red
+	# K_TURNs can never fire again).
 	var best: Maneuver = null
-	var best_speed: int = 0
+	var best_speed: int = -1
+	var best_green: Maneuver = null
+	var best_green_speed: int = -1
 	if ai_ship.dial_data != null:
 		for opt: Dictionary in ai_ship.dial_data.get_all_options():
 			if opt["bearing"] != bearing:
@@ -217,12 +281,17 @@ func _best_maneuver_for_bearing(ai_ship: Ship, bearing: String) -> Maneuver:
 			if ai_ship.engines_disabled() and color != "WHITE":
 				continue
 			var spd: int = int(opt["speed"])
+			var m := Maneuver.new()
+			m.bearing = bearing
+			m.speed = spd
+			if color == "GREEN" and spd > best_green_speed:
+				best_green_speed = spd
+				best_green = m
 			if spd > best_speed:
 				best_speed = spd
-				var m := Maneuver.new()
-				m.bearing = bearing
-				m.speed = spd
 				best = m
+	if ai_ship.stress > 0 and best_green != null:
+		return best_green
 	else:
 		# Legacy: use bearing_options + speed_options.
 		if bearing in ai_ship.bearing_options:
@@ -269,6 +338,37 @@ func _flee_maneuver(ai_ship: Ship, _edge: String) -> Maneuver:
 				if ai_ship.stress == 0 or opt["color"] != "RED":
 					m.speed = int(opt["speed"])
 	return m
+
+
+# Slowest valid (non-stressed-red, non-engines-disabled-non-white) speed for a
+# bearing — used by edge evasion to minimise overshoot when cornered.
+func _slowest_valid_maneuver(ai_ship: Ship, bearing: String) -> Maneuver:
+	if ai_ship.dial_data != null:
+		var best: Maneuver = null
+		var best_speed: int = 999
+		for opt: Dictionary in ai_ship.dial_data.get_all_options():
+			if opt["bearing"] != bearing:
+				continue
+			var color: String = opt["color"]
+			if ai_ship.stress > 0 and color == "RED":
+				continue
+			if ai_ship.engines_disabled() and color != "WHITE":
+				continue
+			var spd: int = int(opt["speed"])
+			if spd < best_speed:
+				best_speed = spd
+				var m := Maneuver.new()
+				m.bearing = bearing
+				m.speed = spd
+				best = m
+		return best
+	# Legacy (no dial_data): use bearing/speed options.
+	if bearing in ai_ship.bearing_options and not ai_ship.speed_options.is_empty():
+		var m2 := Maneuver.new()
+		m2.bearing = bearing
+		m2.speed = ai_ship.speed_options.min()
+		return m2
+	return null
 
 
 # ──────────────────────────── heuristic fallback ─────────────────────────────

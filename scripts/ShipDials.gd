@@ -81,7 +81,7 @@ static func large() -> DialData:
 
 # ── ENEMY CLASSES ────────────────────────────────────────────────────────────
 
-# Section 3.1 — Enemy Fighter (mirrors player Fighter but capped at speed 3, no K-Turn)
+# Section 3.1 — Enemy Fighter (mirrors player Fighter but capped at speed 3)
 static func enemy_fighter() -> DialData:
 	var d := DialData.new()
 	d.dial = {
@@ -90,6 +90,8 @@ static func enemy_fighter() -> DialData:
 		"BANK_RIGHT": {1: "GREEN", 2: "WHITE", 3: "WHITE"},
 		"TURN_LEFT":  {1: "GREEN", 2: "WHITE", 3: "RED"},
 		"TURN_RIGHT": {1: "GREEN", 2: "WHITE", 3: "RED"},
+		"K_TURN":     {3: "RED"},   # reversal so the HOTAC table's K_TURN entries
+		                          # can actually fire (matches scout/assault).
 	}
 	return d
 

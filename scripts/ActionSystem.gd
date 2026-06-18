@@ -16,7 +16,20 @@ func execute_actions(ships: Array) -> void:
 			"TARGET_LOCK":
 				# Disabled sensors cannot acquire a lock.
 				if not s.sensors_disabled():
-					s.target_lock = _nearest_enemy(s, ships)
+					# Acquire the lock from the pending target chosen during planning.
+					# The lock takes a full round: pick TARGET_LOCK + click enemy this
+					# round, the lock activates here (ACTION phase), missiles fire next round.
+					if s.pending_lock_target != null and not s.pending_lock_target.is_destroyed \
+							and s.global_position.distance_to(s.pending_lock_target.global_position) <= ManeuverSystem.MAX_RANGE:
+						s.target_lock = s.pending_lock_target
+						s.pending_lock_target = null
+					elif s.pending_lock_target != null:
+						# The clicked target went invalid before the action phase; clear the pending lock.
+						s.pending_lock_target = null
+						s.target_lock = null
+					else:
+						s.target_lock = _nearest_enemy(s, ships)
+						# no pending target, so auto-acquire like before
 			"BOOST":
 				# Disabled engines cannot boost.
 				if not s.engines_disabled():
@@ -34,6 +47,9 @@ func _nearest_enemy(ship: Ship, ships: Array) -> Ship:
 		if t == ship or t.is_destroyed or t.team == ship.team or not t.is_targetable:
 			continue
 		var d: float = ship.global_position.distance_to(t.global_position)
+		# Target lock has a range limit — can't lock beyond MAX_RANGE.
+		if d > ManeuverSystem.MAX_RANGE:
+			continue
 		if d < best_dist:
 			best_dist = d
 			best = t

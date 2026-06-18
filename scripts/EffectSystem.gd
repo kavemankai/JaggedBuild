@@ -53,7 +53,7 @@ func spawn_projectile(from: Vector2, to: Vector2, is_hit: bool, is_missile: bool
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	var direction: Vector2 = (to - from).normalized()
 	sprite.rotation = direction.angle() + PI * 0.5
-	var bolt_scale: float = 0.045 if is_missile else 0.035
+	var bolt_scale: float = 0.12 if is_missile else 0.035
 	sprite.scale = Vector2(bolt_scale, bolt_scale)
 	sprite.global_position = from
 	scene.add_child(sprite)

@@ -9,6 +9,10 @@ var _sfx_players: Array[AudioStreamPlayer] = []
 var streams: Dictionary = {}
 var _in_battle: bool = false
 
+# Demo-slice guard: when true, phase-music crossfades are suppressed so a demo
+# battle holds its combat track from start to game_ended. Set by DemoBattle only.
+var demo_mode: bool = false
+
 
 func _ready() -> void:
 	# Create buses if the default project layout doesn't include them.
@@ -153,16 +157,21 @@ func _get_free_sfx_player() -> AudioStreamPlayer:
 # ── Phase music transitions ────────────────────────────────────────────────────
 
 func _on_planning() -> void:
+	if demo_mode:
+		return   # demo battle holds its combat track across all phases
 	if not _in_battle:
 		play_music("music_planning", 1.5)
 
 
 func _on_combat() -> void:
 	_in_battle = true
+	if demo_mode:
+		return   # demo battle already playing combat music
 	play_music("music_combat", 0.5)
 
 
 func _on_evaluation() -> void:
+	# (No music change in either mode; demo_mode guard kept for symmetry.)
 	pass
 
 

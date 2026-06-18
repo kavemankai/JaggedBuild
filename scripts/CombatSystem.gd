@@ -94,8 +94,6 @@ func calculate_hit_chance(attacker: Ship, defender: Ship, atk_override: int = -1
 	# Token modifiers
 	if attacker.focus_token:
 		final_chance += FOCUS_HIT_BONUS
-	if attacker.target_lock == defender:
-		final_chance = 1.0 - pow(1.0 - final_chance, 2.0)
 	if defender.evade_token:
 		final_chance -= EVADE_TOKEN_REDUCTION
 	if defender.focus_token:
@@ -171,6 +169,15 @@ func _build_shots(attacker: Ship, defender: Ship, in_arc: bool) -> Array:
 			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack), "damage": CAPITAL_TURRET_DAMAGE, "ion": 0, "bypass": true, "hit": false, "crit_guaranteed": false, "weapon_type": wtype}]
 		_:  # CANNONS default
 			return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack + oc), "damage": 1, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": wtype}]
+
+
+# Secondary missile shots: 4 dmg, ignores 1 defence die, requires lock + ammo.
+# Consumed by run_combat as a separate engagement (fires alongside primary).
+func _build_missile_shots(attacker: Ship, defender: Ship) -> Array:
+	if attacker.target_lock != defender or attacker.missiles_ammo <= 0:
+		return []
+	attacker.missiles_ammo -= 1
+	return [{"chance": calculate_hit_chance(attacker, defender, attacker.attack, 1), "damage": MISSILES_DAMAGE, "ion": 0, "bypass": false, "hit": false, "crit_guaranteed": false, "weapon_type": Weapon.Type.MISSILES}]
 
 
 func _display_chance(shots: Array) -> float:
@@ -308,12 +315,18 @@ func run_combat(ships: Array) -> void:
 
 		var target: Ship = pick_target(shooter, ships)
 		var in_arc: bool = target != null
-		var shots: Array = _build_shots(shooter, target, in_arc) if in_arc else []
+		# Missiles OR cannons, not both: if the ship is firing missiles this round
+		# (toggle on + has lock + has ammo), skip the primary weapon entirely.
+		var firing_missiles: bool = shooter.fire_missiles and shooter.missiles_ammo > 0 \
+				and target != null and shooter.target_lock == target
+		var shots: Array = []
+		if not firing_missiles:
+			shots = _build_shots(shooter, target, in_arc) if in_arc else []
 		engagements.append({
 			"shooter": shooter,
 			"target": target,
 			"shots": shots,
-			"used_lock": in_arc and shooter.target_lock == target,
+			"used_lock": false,
 		})
 		# Sensors disabled by ion: firing arc/hit chance hidden from the player.
 		if shooter.sensors_disabled():
@@ -335,6 +348,20 @@ func run_combat(ships: Array) -> void:
 					"is_rear": true,
 				})
 			shooter.show_rear_arc(rear_target != null)
+
+		# Missiles: when the player toggled fire_missiles during planning AND has a
+		# target lock on the current target AND has ammo, fire missiles INSTEAD of
+		# the primary weapon (cannons). One or the other, not both.
+		if firing_missiles:
+			var missile_shots: Array = _build_missile_shots(shooter, target)
+			if not missile_shots.is_empty():
+				engagements.append({
+					"shooter": shooter,
+					"target": target,
+					"shots": missile_shots,
+					"used_lock": true,   # secondary launch weapon consumes the lock
+					"is_missile": true,
+				})
 
 	await get_tree().create_timer(1.2).timeout
 
@@ -452,6 +479,7 @@ func run_combat(ships: Array) -> void:
 		sh.focus_token = false
 		sh.evade_token = false
 		sh.overcharged = false
+		sh.fire_missiles = false
 	for e in engagements:
 		if e.used_lock:
 			e.shooter.target_lock = null

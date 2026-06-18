@@ -13,6 +13,11 @@ signal game_ended(message: String, color: Color, won: bool)
 
 var current_phase: Phase = Phase.PLANNING
 var round_number: int = 0
+# A ship that flies off a WALL edge isn't instantly destroyed — it gets this many
+# EVALUATION phases to maneuver back into the arena before being lost. Gives the AI
+# (and the player) a fair chance to recover from edge mistakes.
+const TURNS_OFF_MAP_LIMIT: int = 3
+
 var ships: Array = []
 var objective: Objective = null
 
@@ -105,7 +110,10 @@ func _evaluate() -> void:
 
 	for ship in ships:
 		var s0: Ship = ship as Ship
-		if not s0.is_targetable or not ManeuverSystem.is_out_of_bounds(s0.global_position):
+		if not s0.is_targetable:
+			continue
+		if not ManeuverSystem.is_out_of_bounds(s0.global_position):
+			s0.turns_off_map = 0   # safely inside — reset the grace counter
 			continue
 		match ManeuverSystem.edge_mode(s0.global_position):
 			"ESCAPE":
@@ -113,8 +121,11 @@ func _evaluate() -> void:
 				s0.escape_ship()
 			"BLOCK":
 				s0.global_position = ManeuverSystem.clamp_to_arena(s0.global_position)
-			_:  # WALL
-				s0.is_destroyed = true
+				s0.turns_off_map = 0
+			_:  # WALL — grace period before destruction.
+				s0.turns_off_map += 1
+				if s0.turns_off_map >= TURNS_OFF_MAP_LIMIT:
+					s0.is_destroyed = true
 
 	await get_tree().create_timer(0.3).timeout
 

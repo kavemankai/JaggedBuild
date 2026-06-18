@@ -32,6 +32,10 @@ var selected_maneuver: Maneuver = null
 var heavy_cooldown: int = 0
 var is_destroyed: bool = false
 var was_bumped: bool = false
+# Grace counter: how many consecutive EVALUATION phases this ship has been
+# off the arena on a WALL edge. After TURNS_OFF_MAP_LIMIT (RoundManager) the
+# ship is destroyed. Resets to 0 the moment it's safely back in bounds.
+var turns_off_map: int = 0
 var stress: int = 0
 var ion_tokens: int = 0
 var disabled_systems: Dictionary = {}  # system name -> rounds remaining
@@ -39,12 +43,18 @@ var in_formation: bool = false
 var focus_token: bool = false
 var evade_token: bool = false
 var target_lock: Ship = null
+# Pending target chosen during planning via click-to-lock. The actual lock is
+# only acquired during the ACTION phase (next round you can fire missiles).
+var pending_lock_target: Ship = null
 var selected_action: String = ""
 var ability_used: bool = false
 var overcharged: bool = false
 var kills: int = 0
 var missiles_ammo: int = 2
 var torpedoes_ammo: int = 0  # 1 when weapon is TORPEDOES, set in apply_spec
+# Secondary weapon toggle: when true, the ship fires missiles (if it has a target
+# lock and ammo) in addition to its primary weapon during the combat phase.
+var fire_missiles: bool = false
 var upgrade: String = ""
 var veteran_stress_blocked: bool = false
 var escaped: bool = false
@@ -80,6 +90,7 @@ var _arc_medium_band: Polygon2D = null
 
 
 func _ready() -> void:
+	add_to_group("ships")
 	if ship_texture:
 		_body.texture = ship_texture
 	_build_arc_polygon()
