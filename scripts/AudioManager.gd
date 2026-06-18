@@ -7,6 +7,7 @@ var _music_b: AudioStreamPlayer
 var _active_music: AudioStreamPlayer
 var _sfx_players: Array[AudioStreamPlayer] = []
 var streams: Dictionary = {}
+var _in_battle: bool = false
 
 
 func _ready() -> void:
@@ -152,18 +153,21 @@ func _get_free_sfx_player() -> AudioStreamPlayer:
 # ── Phase music transitions ────────────────────────────────────────────────────
 
 func _on_planning() -> void:
-	play_music("music_planning", 1.5)
+	if not _in_battle:
+		play_music("music_planning", 1.5)
 
 
 func _on_combat() -> void:
+	_in_battle = true
 	play_music("music_combat", 0.5)
 
 
 func _on_evaluation() -> void:
-	play_music("music_planning", 2.0)
+	pass
 
 
 func _on_game_ended(_message: String, _color: Color, won: bool) -> void:
+	_in_battle = false
 	stop_music(2.0)
 	if won:
 		play_sfx("sfx_win")
