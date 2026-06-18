@@ -271,6 +271,7 @@ func _apply_crit(target: Ship, wtype: int, guaranteed: bool, hit_hull: bool) -> 
 	var table: Array = _crit_table_for(wtype)
 	var crit_id: String = table[randi() % table.size()]
 	target.add_crit(crit_id)
+	AudioManager.play_sfx("sfx_crit")
 	# Immediate effects applied now; persistent effects tick in EVALUATION.
 	match crit_id:
 		"DIRECT_HIT":
@@ -379,6 +380,14 @@ func run_combat(ships: Array) -> void:
 		for shot in e.shots:
 			var is_missile: bool = int(shot.get("weapon_type", Weapon.Type.CANNONS)) in [Weapon.Type.MISSILES, Weapon.Type.TORPEDOES]
 			EffectSystem.spawn_projectile(e.shooter.global_position, e.target.global_position, shot.hit, is_missile)
+			match int(shot.get("weapon_type", Weapon.Type.CANNONS)):
+				Weapon.Type.CANNONS:   AudioManager.play_sfx("sfx_cannon")
+				Weapon.Type.BURST:     AudioManager.play_sfx("sfx_burst")
+				Weapon.Type.HEAVY:     AudioManager.play_sfx("sfx_heavy")
+				Weapon.Type.ION:       AudioManager.play_sfx("sfx_ion")
+				Weapon.Type.MISSILES:  AudioManager.play_sfx("sfx_missile")
+				Weapon.Type.TORPEDOES: AudioManager.play_sfx("sfx_torpedo")
+				Weapon.Type.TURRET:    AudioManager.play_sfx("sfx_cannon")
 
 	await get_tree().create_timer(SHOT_ANIM_DURATION + 0.1).timeout
 
@@ -396,17 +405,23 @@ func run_combat(ships: Array) -> void:
 					apply_damage(e.target, shot.damage, bypassing)
 				if shot.ion > 0:
 					e.target.ion_tokens += shot.ion
+					AudioManager.play_sfx("sfx_ion_hit", -6.0)
 				if shot.damage > 0 and not bypassing:
 					var hit_hull: bool = shields_before <= 0 or e.target.shields_disrupted()
 					_apply_crit(e.target, int(shot.get("weapon_type", Weapon.Type.CANNONS)), shot.get("crit_guaranteed", false), hit_hull)
 				if was_alive and e.target.is_destroyed:
 					e.shooter.kills += 1
 					EffectSystem.spawn_explosion(e.target.global_position)
+					AudioManager.play_sfx("sfx_explosion")
+					if not e.target.is_drone:
+						AudioManager.play_kia_sting()
 				elif shot.damage > 0:
 					if shields_before > 0 and not shields_was_disrupted and not bypassing:
 						EffectSystem.spawn_shield_hit(e.target.global_position)
+						AudioManager.play_sfx("sfx_shield_hit")
 					else:
 						EffectSystem.spawn_hull_hit(e.target.global_position)
+						AudioManager.play_sfx("sfx_hull_hit")
 
 	# Set cooldown for weapons that just fired. The rear turret has its OWN cooldown so a
 	# Hauler's forward Heavy and rear turret don't share/clobber one timer.

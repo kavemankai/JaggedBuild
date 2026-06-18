@@ -13,6 +13,7 @@ func _ready() -> void:
 	CampaignManager.skirmish_mode = false
 	CampaignManager.reset_test_mode()
 	_build_ui()
+	AudioManager.play_music("music_title", 2.0)
 
 
 func _build_ui() -> void:
@@ -155,6 +156,8 @@ func _build_ui() -> void:
 		btn.set_meta("arrow_slot", arrow_slot)
 		btn.set_meta("btn_index", i)
 		btn.pressed.connect(def[1])
+		btn.pressed.connect(func(): AudioManager.play_sfx("sfx_click"))
+		btn.mouse_entered.connect(func(): AudioManager.play_sfx("sfx_hover"))
 		btn.focus_entered.connect(_on_btn_focus.bind(btn))
 		row.add_child(btn)
 		vbox.add_child(row)
@@ -267,6 +270,8 @@ func _build_mission_card(parent: VBoxContainer) -> void:
 	deploy.add_theme_color_override("font_color", UIConstants.COLOR_GREEN_DIAL)
 	deploy.add_theme_color_override("font_hover_color", UIConstants.COLOR_WHITE)
 	deploy.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/LoadoutScreen.tscn"))
+	deploy.pressed.connect(func(): AudioManager.play_sfx("sfx_click"))
+	deploy.mouse_entered.connect(func(): AudioManager.play_sfx("sfx_hover"))
 	parent.add_child(deploy)
 
 

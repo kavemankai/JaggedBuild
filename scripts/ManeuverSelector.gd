@@ -92,9 +92,11 @@ func _populate_from_dial() -> void:
 				btn.disabled = true
 				btn.modulate = Color(1.0, 1.0, 1.0, 0.3)
 				btn.tooltip_text = "STRESSED"
+				btn.mouse_entered.connect(func(): AudioManager.play_sfx("sfx_error"))
 			elif engines_out and color != "WHITE":
 				btn.disabled = true
 				btn.tooltip_text = "ENGINES DISABLED — white maneuvers only"
+				btn.mouse_entered.connect(func(): AudioManager.play_sfx("sfx_error"))
 
 			if _is_selected(bearing, spd):
 				btn.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
@@ -128,9 +130,11 @@ func _populate_legacy() -> void:
 				btn.disabled = true
 				btn.modulate = Color(1.0, 1.0, 1.0, 0.3)
 				btn.tooltip_text = "STRESSED"
+				btn.mouse_entered.connect(func(): AudioManager.play_sfx("sfx_error"))
 			elif engines_out and move_color != "WHITE":
 				btn.disabled = true
 				btn.tooltip_text = "ENGINES DISABLED — white maneuvers only"
+				btn.mouse_entered.connect(func(): AudioManager.play_sfx("sfx_error"))
 
 			if _is_selected(bearing, spd):
 				btn.add_theme_color_override("font_color", UIConstants.COLOR_AMBER)
@@ -150,11 +154,13 @@ func _is_selected(bearing: String, spd: int) -> bool:
 
 
 func _on_hover(maneuver: Maneuver) -> void:
+	AudioManager.play_sfx("sfx_hover")
 	if _ghost != null:
 		_ghost.update_preview(_ship, maneuver, true)
 
 
 func _on_pick(maneuver: Maneuver) -> void:
+	AudioManager.play_sfx("sfx_click")
 	_ship.selected_maneuver = maneuver
 	if _ghost != null:
 		_ghost.update_preview(_ship, maneuver, false)

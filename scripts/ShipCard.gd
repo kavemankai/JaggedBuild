@@ -54,6 +54,7 @@ func setup(s: Ship, p_hud_mode: bool = false) -> void:
 		_populate_actions()
 		_build_formation_button()
 		_change_btn.pressed.connect(func(): card_clicked.emit(ship))
+		_change_btn.pressed.connect(func(): AudioManager.play_sfx("sfx_click"))
 	else:
 		_maneuver_label.visible = false
 		_action_row.visible = false
@@ -164,7 +165,10 @@ func _build_formation_button() -> void:
 	_form_btn.add_theme_font_size_override("font_size", UIConstants.SIZE_TINY)
 	_form_btn.custom_minimum_size = Vector2(0, 22)
 	_form_btn.focus_mode = Control.FOCUS_NONE
-	_form_btn.pressed.connect(func(): formation_toggled.emit(ship))
+	_form_btn.pressed.connect(func():
+		if ship.formation_role in ["LEAD", "WING"]:
+			AudioManager.play_sfx("sfx_cancel")
+		formation_toggled.emit(ship))
 	$Margin/VBox.add_child(_form_btn)
 	$Margin/VBox.move_child(_form_btn, $Margin/VBox.get_child_count() - 1)
 

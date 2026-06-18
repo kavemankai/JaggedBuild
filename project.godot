@@ -30,6 +30,7 @@ CollisionHandler="*res://scripts/CollisionHandler.gd"
 CombatSystem="*res://scripts/CombatSystem.gd"
 ActionSystem="*res://scripts/ActionSystem.gd"
 CampaignManager="*res://scripts/CampaignManager.gd"
+AudioManager="*res://scripts/AudioManager.gd"
 
 [display]
 

@@ -237,9 +237,12 @@ func refresh() -> void:
 		if not ship.is_destroyed and not ship.escaped and ship.selected_maneuver == null:
 			missing += 1
 
-	_confirm_btn.disabled = missing > 0
-	_confirm_btn.text = "CONFIRM ALL" if missing == 0 else "%d SHIPS NEED ORDERS" % missing
-	_apply_confirm_btn_style(missing == 0)
+	var now_ready: bool = missing == 0
+	if now_ready and _confirm_btn.disabled:
+		AudioManager.play_sfx("sfx_phase")
+	_confirm_btn.disabled = not now_ready
+	_confirm_btn.text = "CONFIRM ALL" if now_ready else "%d SHIPS NEED ORDERS" % missing
+	_apply_confirm_btn_style(now_ready)
 
 	for card in _cards:
 		card.refresh()
@@ -247,6 +250,7 @@ func refresh() -> void:
 
 
 func _on_confirm() -> void:
+	AudioManager.play_sfx("sfx_confirm")
 	for s in _ships:
 		var ship: Ship = s as Ship
 		if ship.selected_action == "":
