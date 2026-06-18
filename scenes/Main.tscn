@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Ship.tscn" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/GhostShip.tscn" id="3"]
-[ext_resource type="PackedScene" path="res://scenes/SelectionPanel.tscn" id="4"]
+[ext_resource type="Script" path="res://scripts/AIController.gd" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/PlanningStrip.tscn" id="7"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1")
@@ -16,10 +17,19 @@ color = Color(0.04, 0.04, 0.12, 1.0)
 [node name="Ships" type="Node2D" parent="."]
 
 [node name="PlayerShip" parent="Ships" instance=ExtResource("2")]
-position = Vector2(800, 450)
+position = Vector2(800, 600)
 
-[node name="GhostShip" parent="." instance=ExtResource("3")]
+[node name="WingShip" parent="Ships" instance=ExtResource("2")]
+position = Vector2(960, 620)
+accent_color = Color(0.3, 0.8, 1.0, 1.0)
+
+[node name="Ghosts" type="Node2D" parent="."]
+
+[node name="AIController" type="Node" parent="."]
+script = ExtResource("5")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
-[node name="SelectionPanel" parent="UI" instance=ExtResource("4")]
+[node name="PlanningStrip" parent="UI" instance=ExtResource("7")]
+
+[node name="HUD" parent="." instance=ExtResource("6")]

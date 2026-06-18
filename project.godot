@@ -8,17 +8,30 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
-config/name="DogfightProto"
+config/name="The Long Retreat"
 config/description="Space dogfight movement system prototype — Gate 1"
 config/version="0.1"
-run/main_scene="res://scenes/Main.tscn"
-config/features=PackedStringArray("4.3", "Forward Plus")
+run/main_scene="res://scenes/DemoSlice.tscn"
+config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
 
+UIConstants="*res://scripts/UIConstants.gd"
+EffectSystem="*res://scripts/EffectSystem.gd"
 ManeuverSystem="*res://scripts/ManeuverSystem.gd"
+RoundManager="*res://scripts/RoundManager.gd"
+CollisionHandler="*res://scripts/CollisionHandler.gd"
+CombatSystem="*res://scripts/CombatSystem.gd"
+ActionSystem="*res://scripts/ActionSystem.gd"
+CampaignManager="*res://scripts/CampaignManager.gd"
+AudioManager="*res://scripts/AudioManager.gd"
+DemoConfig="*res://scripts/DemoConfig.gd"
 
 [display]
 
@@ -26,4 +39,7 @@ window/size/viewport_width=1600
 window/size/viewport_height=900
 window/size/resizable=false
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
+
+[dotnet]
+
+project/assembly_name="DogfightProto"
